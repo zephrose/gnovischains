@@ -1,8 +1,8 @@
 {
-  "name": "ffxi-skillchain-tool",
+  "name": "gnobvischains",
   "version": "0.1.0",
   "private": false,
-  "homepage": "https://{username}.github.io/{repo-name}",
+  "homepage": "https://zephrose.github.io/gnovischains",
   "dependencies": {
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
