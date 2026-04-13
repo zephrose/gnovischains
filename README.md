@@ -1,70 +1,70 @@
-# Getting Started with Create React App
+# Gnovi's Chains - Skillchain Calculator
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A specialized React application for calculating and tracing Weapon Skillchains in Final Fantasy XI. This tool allows users to manage a party of weapons, track active chains, and visualize branching paths for skillchain properties.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- Dynamic Chain Tracking: Real-time calculation of skillchain results based on game priority logic.
 
-### `npm start`
+- Party Management: Add or remove different weapon types to see available skills.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Branch Analysis: Visualizes all possible next steps, highlighting the priority path the game engine will select.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Prerequisites
 
-### `npm test`
+Before you begin, ensure you have the following installed:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js (LTS version recommended)
+- npm (comes with Node) or yarn
 
-### `npm run build`
+## Getting Started
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1.  Setup the Project
+    If you haven't already, create a folder for your project and initialize it, or move your existing files into a standard React structure.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2.  Clone or move your files into a directory
+    - `mkdir gnovis-chains`
+    - `cd gnovis-chains`
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3.  Install Dependencies
+    This project requires react and react-dom. Install them using:
 
-### `npm run eject`
+        - `npm install`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+4.  Project Structure
+    Ensure your src folder looks like this:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+src/
+├── App.js        # The main logic and UI you just updated
+├── data.js       # Contains weaponskills and skillchains data objects
+└── index.js      # The entry point for React
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+5.  Run Locally
+    To start the development server and view the app in your browser:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+        - `npm start`
 
-## Learn More
+    The app will typically be available at http://localhost:3000.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+6.  Build for Production
+    To create an optimized build of the app for deployment:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+        - `npm run build`
 
-### Code Splitting
+    This will create a build/ folder containing the static assets.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## Usage
 
-### Analyzing the Bundle Size
+Add Weapons: Use the dropdown at the top to add weapon types to your party.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Start a Chain: Click on any Weapon Skill under "STARTING WEAPON SKILLS".
 
-### Making a Progressive Web App
+Trace: Follow the "BRANCH SKILLS" section. Buttons with a border and shadow represent the "Priority" skillchain the game will actually execute.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+Toggle Theme: Use the button in the top-right corner to switch between Dark and Light modes.
 
-### Advanced Configuration
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+MIT License - feel free to use and modify for your own FXI adventures!
