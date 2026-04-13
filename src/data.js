@@ -35,6 +35,7 @@ export const weaponskills = {
     "Shoulder Tackle": ["Reverberation", "Impaction"],
     "One Inch Punch": ["Compression"],
     "Backhand Blow": ["Detonation"],
+    "Raging Fist": ["Impaction"],
     "Spinning Attack": ["Impaction", "Liquefaction"],
     "Howling Fist": ["Impaction", "Transfixion"],
     "Dragon Kick": ["Fragmentation"],
@@ -307,6 +308,10 @@ export const weaponskills = {
     "Amorphic Spikes": ["Gravitation"],
     "Barbed Crescent": ["Distortion", "Liquefaction"],
     Bloodrake: ["Darkness", "Gravitation"],
+    "Saurian Slide": ["Fragmentation", "Distortion"],
+    "Sinker Drill": ["Reverberation", "Gravitation"],
+    "Thrashing Assault": ["Fusion", "Impaction"],
+    Tourbillion: ["Light", "Fragmentation"],
   },
 
   "Summoner Blood Pact": {
