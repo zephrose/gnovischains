@@ -47,10 +47,10 @@ function App() {
     "Hand-to-Hand",
     "Dagger",
     "Sword",
-    "Polearm",
   ]);
   const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
   const [darkMode, setDarkMode] = useState(true);
+  const [copyFeedback, setCopyFeedback] = useState(null);
 
   const theme = {
     bg: darkMode ? "#121212" : "#fff",
@@ -102,7 +102,6 @@ function App() {
     return null;
   };
 
-  // Centralized logic to rebuild chain properties after edits
   const recalculateChain = (wsList) => {
     const newHistory = [];
     for (let i = 0; i < wsList.length; i++) {
@@ -111,21 +110,16 @@ function App() {
         newHistory.push({ ...currentWS, scResult: null, isLevel4: false });
         continue;
       }
-
       const lastStep = newHistory[i - 1];
       const starterProps = lastStep.scResult
         ? [lastStep.scResult]
         : getWSProperties(lastStep.name, lastStep.weaponType);
-
       const actualSC = getGamePriorityResult(
         starterProps,
         currentWS.name,
         currentWS.weaponType,
       );
-
-      // Truncate if link is broken or previous step was a Level 4 closer
       if (!actualSC || lastStep.isLevel4) break;
-
       const isLevel4 =
         lastStep.scResult === actualSC &&
         ["Light", "Darkness"].includes(actualSC);
@@ -134,26 +128,40 @@ function App() {
     return newHistory;
   };
 
-  const addToChain = (wsName, weaponType) => {
-    const newHistoryRaw = [...history, { name: wsName, weaponType }];
-    setHistory(recalculateChain(newHistoryRaw));
-  };
-
-  const removeStep = (index) => {
-    const newHistoryRaw = history.filter((_, i) => i !== index);
-    setHistory(recalculateChain(newHistoryRaw));
-  };
-
+  const addToChain = (wsName, weaponType) =>
+    setHistory(recalculateChain([...history, { name: wsName, weaponType }]));
+  const removeStep = (index) =>
+    setHistory(recalculateChain(history.filter((_, i) => i !== index)));
   const moveStep = (index, direction) => {
     const newHistoryRaw = [...history];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newHistoryRaw.length) return;
-
     [newHistoryRaw[index], newHistoryRaw[targetIndex]] = [
       newHistoryRaw[targetIndex],
       newHistoryRaw[index],
     ];
     setHistory(recalculateChain(newHistoryRaw));
+  };
+
+  // Breadcrumb Generation Logic
+  const generateBreadcrumb = (type) => {
+    if (history.length === 0) return "";
+    if (type === "simple") return history.map((s) => s.name).join(" > ");
+    return history
+      .map((s, i) =>
+        i === 0
+          ? s.name
+          : `${s.name} (${s.scResult}${s.isLevel4 ? " Lv4" : ""})`,
+      )
+      .join(" > ");
+  };
+
+  const handleCopy = (type) => {
+    const text = generateBreadcrumb(type);
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopyFeedback(type);
+    setTimeout(() => setCopyFeedback(null), 2000);
   };
 
   const getGroupedNextSteps = () => {
@@ -163,14 +171,12 @@ function App() {
         ? [lastStep.scResult]
         : getWSProperties(lastStep.name, lastStep.weaponType)
       : null;
-
     if (history.length === 0)
       return {
         START_NODES: Object.keys(weaponskills[activeWeaponType] || {}).map(
           (name) => ({ name, isPriority: true }),
         ),
       };
-
     const groups = {};
     Object.keys(weaponskills[activeWeaponType] || {}).forEach((wsName) => {
       const priorityResult = getGamePriorityResult(
@@ -180,13 +186,11 @@ function App() {
       );
       const closerProps = getWSProperties(wsName, activeWeaponType);
       const possibleResults = new Set();
-
       for (let s of starterProps) {
         for (let c of closerProps) {
           if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
         }
       }
-
       possibleResults.forEach((res) => {
         if (!groups[res]) groups[res] = [];
         groups[res].push({ name: wsName, isPriority: res === priorityResult });
@@ -345,98 +349,190 @@ function App() {
         >
           <div
             style={{
-              fontSize: "0.7rem",
-              color: theme.muted,
-              marginBottom: "10px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
             }}
           >
-            == Active Chain ==
-          </div>
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-          >
-            {history.length === 0 && (
-              <div style={{ color: theme.muted }}>- idle -</div>
-            )}
-            {history.map((step, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center" }}>
-                <div
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontSize: "0.7rem",
+                  color: theme.muted,
+                  marginBottom: "10px",
+                }}
+              >
+                == Active Chain ==
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                {history.length === 0 && (
+                  <div style={{ color: theme.muted }}>- idle -</div>
+                )}
+                {history.map((step, i) => (
+                  <div
+                    key={i}
+                    style={{ display: "flex", alignItems: "center" }}
+                  >
+                    <div
+                      style={{
+                        width: "240px",
+                        padding: "8px",
+                        border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
+                        background: theme.itemBg,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: "0.6rem", color: theme.muted }}>
+                          {step.weaponType}
+                        </div>
+                        <div style={{ fontWeight: "bold" }}>{step.name}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: "4px" }}>
+                        <button
+                          onClick={() => moveStep(i, -1)}
+                          disabled={i === 0}
+                          style={{
+                            background: "transparent",
+                            color: theme.text,
+                            border: "none",
+                            cursor: i === 0 ? "default" : "pointer",
+                            opacity: i === 0 ? 0.2 : 1,
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => moveStep(i, 1)}
+                          disabled={i === history.length - 1}
+                          style={{
+                            background: "transparent",
+                            color: theme.text,
+                            border: "none",
+                            cursor:
+                              i === history.length - 1 ? "default" : "pointer",
+                            opacity: i === history.length - 1 ? 0.2 : 1,
+                          }}
+                        >
+                          ▼
+                        </button>
+                        <button
+                          onClick={() => removeStep(i)}
+                          style={{
+                            background: "transparent",
+                            color: "#ff4757",
+                            border: "none",
+                            cursor: "pointer",
+                            marginLeft: "4px",
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    {step.scResult && (
+                      <div
+                        style={{
+                          padding: "0 20px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                        }}
+                      >
+                        <span style={{ color: darkMode ? "#444" : "#ccc" }}>
+                          ▶
+                        </span>
+                        <span style={getStyleForElement(step.scResult)}>
+                          {step.scResult.toUpperCase()}{" "}
+                          {step.isLevel4 ? "LV4" : ""}
+                        </span>
+                        <span style={{ color: darkMode ? "#444" : "#ccc" }}>
+                          ▶
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Breadcrumb Copy Buttons */}
+            {history.length > 0 && (
+              <div
+                style={{
+                  width: "300px",
+                  marginLeft: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ fontSize: "0.7rem", color: theme.muted }}>
+                  == Export ==
+                </div>
+                <button
+                  onClick={() => handleCopy("simple")}
                   style={{
-                    width: "240px",
-                    padding: "8px",
-                    border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
+                    textAlign: "left",
+                    padding: "10px",
                     background: theme.itemBg,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    color: theme.text,
+                    border: `1px solid ${theme.border}`,
+                    cursor: "pointer",
+                    fontSize: "0.7rem",
+                    fontFamily: "monospace",
                   }}
                 >
-                  <div>
-                    <div style={{ fontSize: "0.6rem", color: theme.muted }}>
-                      {step.weaponType}
-                    </div>
-                    <div style={{ fontWeight: "bold" }}>{step.name}</div>
+                  <div style={{ color: theme.muted, marginBottom: "4px" }}>
+                    [ COPY_SIMPLE ] {copyFeedback === "simple" && "✓ COPIED!"}
                   </div>
-                  <div style={{ display: "flex", gap: "4px" }}>
-                    <button
-                      onClick={() => moveStep(i, -1)}
-                      disabled={i === 0}
-                      style={{
-                        background: "transparent",
-                        color: theme.text,
-                        border: "none",
-                        cursor: i === 0 ? "default" : "pointer",
-                        opacity: i === 0 ? 0.2 : 1,
-                      }}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      onClick={() => moveStep(i, 1)}
-                      disabled={i === history.length - 1}
-                      style={{
-                        background: "transparent",
-                        color: theme.text,
-                        border: "none",
-                        cursor:
-                          i === history.length - 1 ? "default" : "pointer",
-                        opacity: i === history.length - 1 ? 0.2 : 1,
-                      }}
-                    >
-                      ▼
-                    </button>
-                    <button
-                      onClick={() => removeStep(i)}
-                      style={{
-                        background: "transparent",
-                        color: "#ff4757",
-                        border: "none",
-                        cursor: "pointer",
-                        marginLeft: "4px",
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-                {step.scResult && (
                   <div
                     style={{
-                      padding: "0 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                   >
-                    <span style={{ color: darkMode ? "#444" : "#ccc" }}>▶</span>
-                    <span style={getStyleForElement(step.scResult)}>
-                      {step.scResult.toUpperCase()} {step.isLevel4 ? "LV4" : ""}
-                    </span>
-                    <span style={{ color: darkMode ? "#444" : "#ccc" }}>▶</span>
+                    {generateBreadcrumb("simple")}
                   </div>
-                )}
+                </button>
+                <button
+                  onClick={() => handleCopy("detailed")}
+                  style={{
+                    textAlign: "left",
+                    padding: "10px",
+                    background: theme.itemBg,
+                    color: theme.text,
+                    border: `1px solid ${theme.border}`,
+                    cursor: "pointer",
+                    fontSize: "0.7rem",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  <div style={{ color: theme.muted, marginBottom: "4px" }}>
+                    [ COPY_DETAILED ]{" "}
+                    {copyFeedback === "detailed" && "✓ COPIED!"}
+                  </div>
+                  <div
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {generateBreadcrumb("detailed")}
+                  </div>
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </section>
 
