@@ -3,13 +3,13 @@ import { weaponskills, skillchains } from "./data";
 
 const ELEMENT_COLORS = {
   Dark: "#000000",
-  Light: "#f9ca24",
+  Light: "#fff6d3",
   Ice: "#a2e4f1",
   Water: "#2980b9",
   Earth: "#8b4513",
   Wind: "#2ecc71",
   Fire: "#ff4757",
-  Lightning: "#a29bfe",
+  Lightning: "#fb8fff",
 };
 
 const ELEMENT_MAP = {
@@ -47,11 +47,11 @@ function App() {
     "Hand-to-Hand",
     "Dagger",
     "Sword",
+    "Polearm",
   ]);
   const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
   const [darkMode, setDarkMode] = useState(true);
 
-  // Theme Constants
   const theme = {
     bg: darkMode ? "#121212" : "#fff",
     text: darkMode ? "#e0e0e0" : "#333",
@@ -66,13 +66,9 @@ function App() {
     const config = ELEMENT_MAP[element];
     if (!config) return { backgroundColor: theme.itemBg, color: theme.text };
     const baseStyle = {
-      color:
-        element === "Light" ||
-        element === "Transfixion" ||
-        element === "Wind" ||
-        element === "Ice"
-          ? "#000"
-          : "#fff",
+      color: ["Light", "Transfixion", "Wind", "Ice"].includes(element)
+        ? "#000"
+        : "#fff",
       padding: "4px 10px",
       borderRadius: "2px",
       fontWeight: "bold",
@@ -106,22 +102,58 @@ function App() {
     return null;
   };
 
-  const addToChain = (wsName, weaponType) => {
-    const lastStep = history[history.length - 1];
-    const starterProps = lastStep
-      ? lastStep.scResult
+  // Centralized logic to rebuild chain properties after edits
+  const recalculateChain = (wsList) => {
+    const newHistory = [];
+    for (let i = 0; i < wsList.length; i++) {
+      const currentWS = wsList[i];
+      if (i === 0) {
+        newHistory.push({ ...currentWS, scResult: null, isLevel4: false });
+        continue;
+      }
+
+      const lastStep = newHistory[i - 1];
+      const starterProps = lastStep.scResult
         ? [lastStep.scResult]
-        : getWSProperties(lastStep.name, lastStep.weaponType)
-      : null;
-    const actualSC = getGamePriorityResult(starterProps, wsName, weaponType);
-    const isLevel4 =
-      history.length > 0 &&
-      history[history.length - 1].scResult === actualSC &&
-      (actualSC === "Light" || actualSC === "Darkness");
-    setHistory([
-      ...history,
-      { name: wsName, weaponType, scResult: actualSC, isLevel4 },
-    ]);
+        : getWSProperties(lastStep.name, lastStep.weaponType);
+
+      const actualSC = getGamePriorityResult(
+        starterProps,
+        currentWS.name,
+        currentWS.weaponType,
+      );
+
+      // Truncate if link is broken or previous step was a Level 4 closer
+      if (!actualSC || lastStep.isLevel4) break;
+
+      const isLevel4 =
+        lastStep.scResult === actualSC &&
+        ["Light", "Darkness"].includes(actualSC);
+      newHistory.push({ ...currentWS, scResult: actualSC, isLevel4 });
+    }
+    return newHistory;
+  };
+
+  const addToChain = (wsName, weaponType) => {
+    const newHistoryRaw = [...history, { name: wsName, weaponType }];
+    setHistory(recalculateChain(newHistoryRaw));
+  };
+
+  const removeStep = (index) => {
+    const newHistoryRaw = history.filter((_, i) => i !== index);
+    setHistory(recalculateChain(newHistoryRaw));
+  };
+
+  const moveStep = (index, direction) => {
+    const newHistoryRaw = [...history];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= newHistoryRaw.length) return;
+
+    [newHistoryRaw[index], newHistoryRaw[targetIndex]] = [
+      newHistoryRaw[targetIndex],
+      newHistoryRaw[index],
+    ];
+    setHistory(recalculateChain(newHistoryRaw));
   };
 
   const getGroupedNextSteps = () => {
@@ -146,9 +178,9 @@ function App() {
         wsName,
         activeWeaponType,
       );
-
       const closerProps = getWSProperties(wsName, activeWeaponType);
       const possibleResults = new Set();
+
       for (let s of starterProps) {
         for (let c of closerProps) {
           if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
@@ -166,9 +198,7 @@ function App() {
   const removeFromParty = (weapon) => {
     const newParty = partySlots.filter((p) => p !== weapon);
     setPartySlots(newParty);
-    if (activeWeaponType === weapon) {
-      setActiveWeaponType(newParty[0] || "");
-    }
+    if (activeWeaponType === weapon) setActiveWeaponType(newParty[0] || "");
   };
 
   const groupedNextSteps = getGroupedNextSteps();
@@ -332,16 +362,62 @@ function App() {
               <div key={i} style={{ display: "flex", alignItems: "center" }}>
                 <div
                   style={{
-                    width: "200px",
+                    width: "240px",
                     padding: "8px",
                     border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
                     background: theme.itemBg,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  <div style={{ fontSize: "0.6rem", color: theme.muted }}>
-                    {step.weaponType}
+                  <div>
+                    <div style={{ fontSize: "0.6rem", color: theme.muted }}>
+                      {step.weaponType}
+                    </div>
+                    <div style={{ fontWeight: "bold" }}>{step.name}</div>
                   </div>
-                  <div style={{ fontWeight: "bold" }}>{step.name}</div>
+                  <div style={{ display: "flex", gap: "4px" }}>
+                    <button
+                      onClick={() => moveStep(i, -1)}
+                      disabled={i === 0}
+                      style={{
+                        background: "transparent",
+                        color: theme.text,
+                        border: "none",
+                        cursor: i === 0 ? "default" : "pointer",
+                        opacity: i === 0 ? 0.2 : 1,
+                      }}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      onClick={() => moveStep(i, 1)}
+                      disabled={i === history.length - 1}
+                      style={{
+                        background: "transparent",
+                        color: theme.text,
+                        border: "none",
+                        cursor:
+                          i === history.length - 1 ? "default" : "pointer",
+                        opacity: i === history.length - 1 ? 0.2 : 1,
+                      }}
+                    >
+                      ▼
+                    </button>
+                    <button
+                      onClick={() => removeStep(i)}
+                      style={{
+                        background: "transparent",
+                        color: "#ff4757",
+                        border: "none",
+                        cursor: "pointer",
+                        marginLeft: "4px",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
                 {step.scResult && (
                   <div
