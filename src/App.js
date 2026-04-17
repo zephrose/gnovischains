@@ -744,6 +744,33 @@ function App() {
           )}
         </section>
       </div>
+      <footer
+        style={{
+          padding: "2rem",
+          textAlign: "center",
+          borderTop: `1px solid ${theme.border}`,
+          background: theme.bg,
+        }}
+      >
+        <a
+          href="https://www.buymeacoffee.com/zephrose"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            textDecoration: "none",
+            color: theme.muted,
+            fontSize: "0.7rem",
+            fontFamily: "monospace",
+            border: `1px solid ${theme.border}`,
+            padding: "5px 15px",
+            transition: "color 0.2s",
+          }}
+          onMouseOver={(e) => (e.currentTarget.style.color = theme.text)}
+          onMouseOut={(e) => (e.currentTarget.style.color = theme.muted)}
+        >
+          [ ☕ BUY_A_COFFEE ]
+        </a>
+      </footer>
     </div>
   );
 }
