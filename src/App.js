@@ -47,9 +47,12 @@ function App() {
     "Hand-to-Hand",
     "Dagger",
     "Sword",
+    "Great Katana",
+    "Club",
   ]);
   const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
   const [darkMode, setDarkMode] = useState(true);
+  const [antiChainMode, setAntiChainMode] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
 
   const theme = {
@@ -60,6 +63,7 @@ function App() {
     itemBg: darkMode ? "#2c2c2c" : "#fff",
     accent: darkMode ? "#e0e0e0" : "#333",
     muted: darkMode ? "#777" : "#aaa",
+    danger: "#ff4757",
   };
 
   const getStyleForElement = (element, isInactive = false) => {
@@ -102,7 +106,7 @@ function App() {
     return null;
   };
 
-  const recalculateChain = (wsList) => {
+  const recalculateChain = (wsList, isAnti) => {
     const newHistory = [];
     for (let i = 0; i < wsList.length; i++) {
       const currentWS = wsList[i];
@@ -119,8 +123,16 @@ function App() {
         currentWS.name,
         currentWS.weaponType,
       );
-      if (!actualSC || lastStep.isLevel4) break;
+
+      // Validation logic per mode
+      if (isAnti) {
+        if (actualSC !== null) break; // If a chain forms, it's an invalid Anti-Chain step
+      } else {
+        if (actualSC === null || lastStep.isLevel4) break; // Standard chain rules
+      }
+
       const isLevel4 =
+        !isAnti &&
         lastStep.scResult === actualSC &&
         ["Light", "Darkness"].includes(actualSC);
       newHistory.push({ ...currentWS, scResult: actualSC, isLevel4 });
@@ -128,10 +140,26 @@ function App() {
     return newHistory;
   };
 
+  const toggleAntiChain = () => {
+    const newMode = !antiChainMode;
+    setAntiChainMode(newMode);
+    setHistory(recalculateChain(history, newMode));
+  };
+
   const addToChain = (wsName, weaponType) =>
-    setHistory(recalculateChain([...history, { name: wsName, weaponType }]));
+    setHistory(
+      recalculateChain(
+        [...history, { name: wsName, weaponType }],
+        antiChainMode,
+      ),
+    );
   const removeStep = (index) =>
-    setHistory(recalculateChain(history.filter((_, i) => i !== index)));
+    setHistory(
+      recalculateChain(
+        history.filter((_, i) => i !== index),
+        antiChainMode,
+      ),
+    );
   const moveStep = (index, direction) => {
     const newHistoryRaw = [...history];
     const targetIndex = index + direction;
@@ -140,13 +168,16 @@ function App() {
       newHistoryRaw[targetIndex],
       newHistoryRaw[index],
     ];
-    setHistory(recalculateChain(newHistoryRaw));
+    setHistory(recalculateChain(newHistoryRaw, antiChainMode));
   };
 
-  // Breadcrumb Generation Logic
   const generateBreadcrumb = (type) => {
     if (history.length === 0) return "";
-    if (type === "simple") return history.map((s) => s.name).join(" > ");
+    if (type === "simple") {
+      const suffix = antiChainMode ? " ∅" : "";
+      return history.map((s) => s.name).join(" > ") + suffix;
+    }
+    if (antiChainMode) return ""; // Hide detailed in Anti-mode
     return history
       .map((s, i) =>
         i === 0
@@ -157,7 +188,14 @@ function App() {
   };
 
   const handleCopy = (type) => {
-    const text = generateBreadcrumb(type);
+    let text = "";
+    if (type === "all-safe") {
+      const base = generateBreadcrumb("simple").replace(" ∅", "");
+      const branches = getGroupedNextSteps()["SAFE_OPTIONS"] || [];
+      text = branches.map((b) => `${base} > ${b.name} ∅`).join("\n");
+    } else {
+      text = generateBreadcrumb(type);
+    }
     if (!text) return;
     navigator.clipboard.writeText(text);
     setCopyFeedback(type);
@@ -171,12 +209,14 @@ function App() {
         ? [lastStep.scResult]
         : getWSProperties(lastStep.name, lastStep.weaponType)
       : null;
+
     if (history.length === 0)
       return {
         START_NODES: Object.keys(weaponskills[activeWeaponType] || {}).map(
           (name) => ({ name, isPriority: true }),
         ),
       };
+
     const groups = {};
     Object.keys(weaponskills[activeWeaponType] || {}).forEach((wsName) => {
       const priorityResult = getGamePriorityResult(
@@ -184,17 +224,28 @@ function App() {
         wsName,
         activeWeaponType,
       );
-      const closerProps = getWSProperties(wsName, activeWeaponType);
-      const possibleResults = new Set();
-      for (let s of starterProps) {
-        for (let c of closerProps) {
-          if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
+
+      if (antiChainMode) {
+        if (priorityResult === null) {
+          if (!groups["SAFE_OPTIONS"]) groups["SAFE_OPTIONS"] = [];
+          groups["SAFE_OPTIONS"].push({ name: wsName, isPriority: true });
         }
+      } else {
+        const closerProps = getWSProperties(wsName, activeWeaponType);
+        const possibleResults = new Set();
+        for (let s of starterProps) {
+          for (let c of closerProps) {
+            if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
+          }
+        }
+        possibleResults.forEach((res) => {
+          if (!groups[res]) groups[res] = [];
+          groups[res].push({
+            name: wsName,
+            isPriority: res === priorityResult,
+          });
+        });
       }
-      possibleResults.forEach((res) => {
-        if (!groups[res]) groups[res] = [];
-        groups[res].push({ name: wsName, isPriority: res === priorityResult });
-      });
     });
     return groups;
   };
@@ -215,7 +266,7 @@ function App() {
         backgroundColor: theme.bg,
         color: theme.text,
         minHeight: "100vh",
-        transition: "background-color 0.2s ease",
+        transition: "all 0.2s ease",
       }}
     >
       <div
@@ -227,30 +278,51 @@ function App() {
           position: "relative",
         }}
       >
-        <button
-          onClick={() => setDarkMode(!darkMode)}
+        <div
           style={{
             position: "absolute",
             top: "2rem",
             right: "2rem",
-            cursor: "pointer",
-            background: theme.itemBg,
-            color: theme.text,
-            border: `1px solid ${theme.border}`,
-            padding: "5px 10px",
-            fontSize: "0.7rem",
+            display: "flex",
+            gap: "10px",
           }}
         >
-          {darkMode ? "☀ LIGHT_MODE" : "🌙 DARK_MODE"}
-        </button>
+          <button
+            onClick={toggleAntiChain}
+            style={{
+              cursor: "pointer",
+              background: antiChainMode ? theme.danger : theme.itemBg,
+              color: antiChainMode ? "#fff" : theme.text,
+              border: `1px solid ${antiChainMode ? theme.danger : theme.border}`,
+              padding: "5px 10px",
+              fontSize: "0.7rem",
+              fontWeight: "bold",
+            }}
+          >
+            {antiChainMode ? "Ø ANTI_MODE_ON" : "Ø ANTI_MODE_OFF"}
+          </button>
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            style={{
+              cursor: "pointer",
+              background: theme.itemBg,
+              color: theme.text,
+              border: `1px solid ${theme.border}`,
+              padding: "5px 10px",
+              fontSize: "0.7rem",
+            }}
+          >
+            {darkMode ? "☀ LIGHT" : "🌙 DARK"}
+          </button>
+        </div>
 
         <header
           style={{
-            borderBottom: `2px solid ${theme.accent}`,
+            borderBottom: `2px solid ${antiChainMode ? theme.danger : theme.accent}`,
             marginBottom: "2rem",
           }}
         >
-          <h1>Gnovi's Chains</h1>
+          <h1>{antiChainMode ? "Gnovi's Anti-Chains" : "Gnovi's Chains"}</h1>
           <div
             style={{
               display: "flex",
@@ -267,7 +339,11 @@ function App() {
                   alignItems: "center",
                   border: `1px solid ${theme.border}`,
                   background:
-                    activeWeaponType === weapon ? theme.accent : theme.itemBg,
+                    activeWeaponType === weapon
+                      ? antiChainMode
+                        ? theme.danger
+                        : theme.accent
+                      : theme.itemBg,
                 }}
               >
                 <button
@@ -278,7 +354,12 @@ function App() {
                     cursor: "pointer",
                     fontFamily: "monospace",
                     background: "transparent",
-                    color: activeWeaponType === weapon ? theme.bg : theme.text,
+                    color:
+                      activeWeaponType === weapon
+                        ? antiChainMode
+                          ? "#fff"
+                          : theme.bg
+                        : theme.text,
                   }}
                 >
                   {weapon.toUpperCase()}
@@ -289,7 +370,7 @@ function App() {
                     padding: "8px 5px",
                     border: "none",
                     background: "transparent",
-                    color: "#ff4757",
+                    color: theme.danger,
                     cursor: "pointer",
                   }}
                 >
@@ -428,7 +509,7 @@ function App() {
                           onClick={() => removeStep(i)}
                           style={{
                             background: "transparent",
-                            color: "#ff4757",
+                            color: theme.danger,
                             border: "none",
                             cursor: "pointer",
                             marginLeft: "4px",
@@ -438,7 +519,7 @@ function App() {
                         </button>
                       </div>
                     </div>
-                    {step.scResult && (
+                    {i < history.length - 1 && (
                       <div
                         style={{
                           padding: "0 20px",
@@ -450,10 +531,20 @@ function App() {
                         <span style={{ color: darkMode ? "#444" : "#ccc" }}>
                           ▶
                         </span>
-                        <span style={getStyleForElement(step.scResult)}>
-                          {step.scResult.toUpperCase()}{" "}
-                          {step.isLevel4 ? "LV4" : ""}
-                        </span>
+                        {antiChainMode ? (
+                          <span
+                            style={{ fontSize: "1.2rem", color: theme.muted }}
+                          >
+                            ∅
+                          </span>
+                        ) : (
+                          <span
+                            style={getStyleForElement(history[i + 1].scResult)}
+                          >
+                            {history[i + 1].scResult?.toUpperCase()}{" "}
+                            {history[i + 1].isLevel4 ? "LV4" : ""}
+                          </span>
+                        )}
                         <span style={{ color: darkMode ? "#444" : "#ccc" }}>
                           ▶
                         </span>
@@ -464,7 +555,6 @@ function App() {
               </div>
             </div>
 
-            {/* Breadcrumb Copy Buttons */}
             {history.length > 0 && (
               <div
                 style={{
@@ -492,7 +582,7 @@ function App() {
                   }}
                 >
                   <div style={{ color: theme.muted, marginBottom: "4px" }}>
-                    [ COPY_SIMPLE ] {copyFeedback === "simple" && "✓ COPIED!"}
+                    [ COPY_SIMPLE ] {copyFeedback === "simple" && "✓"}
                   </div>
                   <div
                     style={{
@@ -504,33 +594,57 @@ function App() {
                     {generateBreadcrumb("simple")}
                   </div>
                 </button>
-                <button
-                  onClick={() => handleCopy("detailed")}
-                  style={{
-                    textAlign: "left",
-                    padding: "10px",
-                    background: theme.itemBg,
-                    color: theme.text,
-                    border: `1px solid ${theme.border}`,
-                    cursor: "pointer",
-                    fontSize: "0.7rem",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  <div style={{ color: theme.muted, marginBottom: "4px" }}>
-                    [ COPY_DETAILED ]{" "}
-                    {copyFeedback === "detailed" && "✓ COPIED!"}
-                  </div>
-                  <div
+                {!antiChainMode && (
+                  <button
+                    onClick={() => handleCopy("detailed")}
                     style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      textAlign: "left",
+                      padding: "10px",
+                      background: theme.itemBg,
+                      color: theme.text,
+                      border: `1px solid ${theme.border}`,
+                      cursor: "pointer",
+                      fontSize: "0.7rem",
+                      fontFamily: "monospace",
                     }}
                   >
-                    {generateBreadcrumb("detailed")}
-                  </div>
-                </button>
+                    <div style={{ color: theme.muted, marginBottom: "4px" }}>
+                      [ COPY_DETAILED ] {copyFeedback === "detailed" && "✓"}
+                    </div>
+                    <div
+                      style={{
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {generateBreadcrumb("detailed")}
+                    </div>
+                  </button>
+                )}
+                {antiChainMode && (
+                  <button
+                    onClick={() => handleCopy("all-safe")}
+                    style={{
+                      textAlign: "left",
+                      padding: "10px",
+                      background: theme.itemBg,
+                      color: theme.text,
+                      border: `1px solid ${theme.border}`,
+                      cursor: "pointer",
+                      fontSize: "0.7rem",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    <div style={{ color: theme.muted, marginBottom: "4px" }}>
+                      [ COPY_ALL_SAFE_FOLLOWUPS ]{" "}
+                      {copyFeedback === "all-safe" && "✓"}
+                    </div>
+                    <div style={{ fontSize: "0.6rem" }}>
+                      Generates multiline list of all ∅ options
+                    </div>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -544,78 +658,77 @@ function App() {
               marginBottom: "1.5rem",
             }}
           >
-            == BRANCH SKILLS ==
+            == {antiChainMode ? "SAFETY BRANCHES (ZERO LINK)" : "BRANCH SKILLS"}{" "}
+            ==
           </div>
           {!isChainClosed ? (
-            Object.entries(groupedNextSteps).map(([element, skills]) => {
-              const hasPriority = skills.some((s) => s.isPriority);
-              return (
-                <div key={element} style={{ marginBottom: "2rem" }}>
-                  <div style={{ marginBottom: "12px" }}>
-                    {element !== "START_NODES" ? (
-                      <span style={getStyleForElement(element, !hasPriority)}>
-                        {element.toUpperCase()}
-                      </span>
-                    ) : (
-                      <span style={{ color: theme.muted }}>
-                        STARTING WEAPON SKILLS
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}
-                  >
-                    {skills.map((ws, idx) => (
-                      <button
-                        key={`${ws.name}-${idx}`}
-                        onClick={() =>
-                          ws.isPriority && addToChain(ws.name, activeWeaponType)
-                        }
+            Object.entries(groupedNextSteps).map(([element, skills]) => (
+              <div key={element} style={{ marginBottom: "2rem" }}>
+                <div style={{ marginBottom: "12px" }}>
+                  {antiChainMode ? (
+                    <span
+                      style={{
+                        border: `1px solid ${theme.muted}`,
+                        padding: "4px 10px",
+                        color: theme.muted,
+                      }}
+                    >
+                      SAFE_OPTIONS
+                    </span>
+                  ) : element !== "START_NODES" ? (
+                    <span
+                      style={getStyleForElement(
+                        element,
+                        !skills.some((s) => s.isPriority),
+                      )}
+                    >
+                      {element.toUpperCase()}
+                    </span>
+                  ) : (
+                    <span style={{ color: theme.muted }}>
+                      STARTING WEAPON SKILLS
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+                  {skills.map((ws, idx) => (
+                    <button
+                      key={`${ws.name}-${idx}`}
+                      onClick={() =>
+                        ws.isPriority && addToChain(ws.name, activeWeaponType)
+                      }
+                      style={{
+                        padding: "12px",
+                        background: theme.itemBg,
+                        color: theme.text,
+                        border: ws.isPriority
+                          ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
+                          : `1px solid ${theme.border}`,
+                        cursor: ws.isPriority ? "pointer" : "not-allowed",
+                        fontFamily: "monospace",
+                        textAlign: "left",
+                        minWidth: "150px",
+                        boxShadow: ws.isPriority
+                          ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
+                          : "none",
+                        opacity: ws.isPriority ? 1 : 0.4,
+                      }}
+                    >
+                      <strong>{ws.name}</strong>
+                      <div
                         style={{
-                          padding: "12px",
-                          background: theme.itemBg,
-                          color: theme.text,
-                          border: ws.isPriority
-                            ? `2px solid ${theme.accent}`
-                            : `1px solid ${darkMode ? "#333" : "#eee"}`,
-                          cursor: ws.isPriority ? "pointer" : "not-allowed",
-                          fontFamily: "monospace",
-                          textAlign: "left",
-                          minWidth: "150px",
-                          boxShadow: ws.isPriority
-                            ? `4px 4px 0px ${theme.accent}`
-                            : "none",
-                          opacity: ws.isPriority ? 1 : 0.4,
-                          transform: ws.isPriority ? "none" : "scale(0.95)",
-                          pointerEvents: ws.isPriority ? "auto" : "none",
+                          fontSize: "0.6rem",
+                          color: theme.muted,
+                          marginTop: "4px",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "start",
-                          }}
-                        >
-                          <strong>{ws.name}</strong>
-                        </div>
-                        <div
-                          style={{
-                            fontSize: "0.6rem",
-                            color: theme.muted,
-                            marginTop: "4px",
-                          }}
-                        >
-                          {getWSProperties(ws.name, activeWeaponType).join(
-                            " • ",
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                        {getWSProperties(ws.name, activeWeaponType).join(" • ")}
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              );
-            })
+              </div>
+            ))
           ) : (
             <div
               style={{
