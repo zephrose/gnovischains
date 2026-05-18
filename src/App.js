@@ -44,15 +44,16 @@ const ELEMENT_MAP = {
 function App() {
   const [history, setHistory] = useState([]);
   const [partySlots, setPartySlots] = useState([
-    "Hand-to-Hand",
-    "Dagger",
     "Sword",
-    "Great Katana",
+    "Hand-to-Hand",
     "Club",
+    "Dagger",
+    "Katana",
   ]);
   const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
   const [darkMode, setDarkMode] = useState(true);
   const [antiChainMode, setAntiChainMode] = useState(false);
+  const [multiPartyMode, setMultiPartyMode] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
 
   const theme = {
@@ -124,11 +125,10 @@ function App() {
         currentWS.weaponType,
       );
 
-      // Validation logic per mode
       if (isAnti) {
-        if (actualSC !== null) break; // If a chain forms, it's an invalid Anti-Chain step
+        if (actualSC !== null) break;
       } else {
-        if (actualSC === null || lastStep.isLevel4) break; // Standard chain rules
+        if (actualSC === null || lastStep.isLevel4) break;
       }
 
       const isLevel4 =
@@ -153,6 +153,7 @@ function App() {
         antiChainMode,
       ),
     );
+
   const removeStep = (index) =>
     setHistory(
       recalculateChain(
@@ -160,6 +161,7 @@ function App() {
         antiChainMode,
       ),
     );
+
   const moveStep = (index, direction) => {
     const newHistoryRaw = [...history];
     const targetIndex = index + direction;
@@ -177,7 +179,7 @@ function App() {
       const suffix = antiChainMode ? " ∅" : "";
       return history.map((s) => s.name).join(" > ") + suffix;
     }
-    if (antiChainMode) return ""; // Hide detailed in Anti-mode
+    if (antiChainMode) return "";
     return history
       .map((s, i) =>
         i === 0
@@ -203,6 +205,14 @@ function App() {
   };
 
   const getGroupedNextSteps = () => {
+    if (history.length === 0) {
+      return {
+        START_NODES: Object.keys(weaponskills[activeWeaponType] || {}).map(
+          (name) => ({ name, weaponType: activeWeaponType, isPriority: true }),
+        ),
+      };
+    }
+
     const lastStep = history[history.length - 1];
     const starterProps = lastStep
       ? lastStep.scResult
@@ -210,43 +220,57 @@ function App() {
         : getWSProperties(lastStep.name, lastStep.weaponType)
       : null;
 
-    if (history.length === 0)
-      return {
-        START_NODES: Object.keys(weaponskills[activeWeaponType] || {}).map(
-          (name) => ({ name, isPriority: true }),
-        ),
-      };
-
+    const weaponsToEvaluate = multiPartyMode ? partySlots : [activeWeaponType];
     const groups = {};
-    Object.keys(weaponskills[activeWeaponType] || {}).forEach((wsName) => {
-      const priorityResult = getGamePriorityResult(
-        starterProps,
-        wsName,
-        activeWeaponType,
-      );
 
-      if (antiChainMode) {
-        if (priorityResult === null) {
-          if (!groups["SAFE_OPTIONS"]) groups["SAFE_OPTIONS"] = [];
-          groups["SAFE_OPTIONS"].push({ name: wsName, isPriority: true });
-        }
-      } else {
-        const closerProps = getWSProperties(wsName, activeWeaponType);
-        const possibleResults = new Set();
-        for (let s of starterProps) {
-          for (let c of closerProps) {
-            if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
+    weaponsToEvaluate.forEach((wType) => {
+      Object.keys(weaponskills[wType] || {}).forEach((wsName) => {
+        const priorityResult = getGamePriorityResult(
+          starterProps,
+          wsName,
+          wType,
+        );
+
+        if (antiChainMode) {
+          if (priorityResult === null) {
+            if (!groups["SAFE_OPTIONS"]) groups["SAFE_OPTIONS"] = [];
+            groups["SAFE_OPTIONS"].push({
+              name: wsName,
+              weaponType: wType,
+              isPriority: true,
+            });
           }
-        }
-        possibleResults.forEach((res) => {
-          if (!groups[res]) groups[res] = [];
-          groups[res].push({
-            name: wsName,
-            isPriority: res === priorityResult,
+        } else {
+          const closerProps = getWSProperties(wsName, wType);
+          const possibleResults = new Set();
+          for (let s of starterProps) {
+            for (let c of closerProps) {
+              if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
+            }
+          }
+          possibleResults.forEach((res) => {
+            if (!groups[res]) groups[res] = [];
+            groups[res].push({
+              name: wsName,
+              weaponType: wType,
+              isPriority: res === priorityResult,
+            });
           });
-        });
-      }
+        }
+      });
     });
+
+    const sortSkills = (a, b) => {
+      if (a.weaponType !== b.weaponType) {
+        return a.weaponType.localeCompare(b.weaponType);
+      }
+      return a.name.localeCompare(b.name);
+    };
+
+    Object.keys(groups).forEach((key) => {
+      groups[key].sort(sortSkills);
+    });
+
     return groups;
   };
 
@@ -287,6 +311,20 @@ function App() {
             gap: "10px",
           }}
         >
+          <button
+            onClick={() => setMultiPartyMode(!multiPartyMode)}
+            style={{
+              cursor: "pointer",
+              background: multiPartyMode ? theme.accent : theme.itemBg,
+              color: multiPartyMode ? theme.bg : theme.text,
+              border: `1px solid ${theme.border}`,
+              padding: "5px 10px",
+              fontSize: "0.7rem",
+              fontWeight: "bold",
+            }}
+          >
+            {multiPartyMode ? "👥 PARTY_WEAPONS_ON" : "👤 SINGLE_WEAPON_ON"}
+          </button>
           <button
             onClick={toggleAntiChain}
             style={{
@@ -686,46 +724,70 @@ function App() {
                     </span>
                   ) : (
                     <span style={{ color: theme.muted }}>
-                      STARTING WEAPON SKILLS
+                      STARTING WEAPON SKILLS ({activeWeaponType.toUpperCase()})
                     </span>
                   )}
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                  {skills.map((ws, idx) => (
-                    <button
-                      key={`${ws.name}-${idx}`}
-                      onClick={() =>
-                        ws.isPriority && addToChain(ws.name, activeWeaponType)
-                      }
-                      style={{
-                        padding: "12px",
-                        background: theme.itemBg,
-                        color: theme.text,
-                        border: ws.isPriority
-                          ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
-                          : `1px solid ${theme.border}`,
-                        cursor: ws.isPriority ? "pointer" : "not-allowed",
-                        fontFamily: "monospace",
-                        textAlign: "left",
-                        minWidth: "150px",
-                        boxShadow: ws.isPriority
-                          ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
-                          : "none",
-                        opacity: ws.isPriority ? 1 : 0.4,
-                      }}
-                    >
-                      <strong>{ws.name}</strong>
-                      <div
+                  {skills.map((ws, idx) => {
+                    const hasPartyHeader = multiPartyMode && history.length > 0;
+                    return (
+                      <button
+                        key={`${ws.weaponType}-${ws.name}-${idx}`}
+                        onClick={() =>
+                          ws.isPriority && addToChain(ws.name, ws.weaponType)
+                        }
                         style={{
-                          fontSize: "0.6rem",
-                          color: theme.muted,
-                          marginTop: "4px",
+                          position: "relative",
+                          padding: "12px",
+                          paddingTop: hasPartyHeader ? "22px" : "12px",
+                          background: theme.itemBg,
+                          color: theme.text,
+                          border: ws.isPriority
+                            ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
+                            : `1px solid ${theme.border}`,
+                          cursor: ws.isPriority ? "pointer" : "not-allowed",
+                          fontFamily: "monospace",
+                          textAlign: "left",
+                          minWidth: "165px",
+                          boxShadow: ws.isPriority
+                            ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
+                            : "none",
+                          opacity: ws.isPriority ? 1 : 0.4,
                         }}
                       >
-                        {getWSProperties(ws.name, activeWeaponType).join(" • ")}
-                      </div>
-                    </button>
-                  ))}
+                        {hasPartyHeader && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              top: "6px",
+                              right: "8px",
+                              fontSize: "0.75rem",
+                              color: ws.isPriority
+                                ? antiChainMode
+                                  ? theme.danger
+                                  : "#b388ff"
+                                : theme.muted,
+                              fontWeight: "bold",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            [{ws.weaponType}]
+                          </div>
+                        )}
+                        <strong>{ws.name}</strong>
+                        <div
+                          style={{
+                            fontSize: "0.6rem",
+                            color: theme.muted,
+                            marginTop: "4px",
+                          }}
+                        >
+                          {getWSProperties(ws.name, ws.weaponType).join(" • ")}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))
