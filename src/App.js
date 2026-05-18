@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { weaponskills, skillchains } from "./data";
 
 const ELEMENT_COLORS = {
@@ -50,11 +50,25 @@ function App() {
     "Dagger",
     "Katana",
   ]);
-  const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
+  const [activeWeaponType, setActiveWeaponType] = useState("Sword");
   const [darkMode, setDarkMode] = useState(true);
   const [antiChainMode, setAntiChainMode] = useState(false);
   const [multiPartyMode, setMultiPartyMode] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
+
+  // Responsive & Mobile State Management
+  const [isMobile, setIsMobile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({});
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    handleResize(); // Initial check
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const theme = {
     bg: darkMode ? "#121212" : "#fff",
@@ -65,6 +79,19 @@ function App() {
     accent: darkMode ? "#e0e0e0" : "#333",
     muted: darkMode ? "#777" : "#aaa",
     danger: "#ff4757",
+  };
+
+  const toggleSection = (section) => {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
+
+  const renderTitle = () => {
+    if (antiChainMode) return "Gnovi's Anti-Chains";
+    if (multiPartyMode) return "Gnovi's Party-Chains";
+    return "Gnovi's Chains";
   };
 
   const getStyleForElement = (element, isInactive = false) => {
@@ -284,6 +311,58 @@ function App() {
   const isChainClosed =
     history.length > 0 && history[history.length - 1].isLevel4;
 
+  const renderActionButtons = () => (
+    <>
+      <button
+        onClick={() => setMultiPartyMode(!multiPartyMode)}
+        style={{
+          cursor: "pointer",
+          background: multiPartyMode ? theme.accent : theme.itemBg,
+          color: multiPartyMode ? theme.bg : theme.text,
+          border: `1px solid ${theme.border}`,
+          padding: "8px 12px",
+          fontSize: "0.75rem",
+          fontWeight: "bold",
+          fontFamily: "monospace",
+          width: isMobile ? "100%" : "auto",
+        }}
+      >
+        {multiPartyMode ? "👥 PARTY_WEAPONS_ON" : "👤 SINGLE_WEAPON_ON"}
+      </button>
+      <button
+        onClick={toggleAntiChain}
+        style={{
+          cursor: "pointer",
+          background: antiChainMode ? theme.danger : theme.itemBg,
+          color: antiChainMode ? "#fff" : theme.text,
+          border: `1px solid ${antiChainMode ? theme.danger : theme.border}`,
+          padding: "8px 12px",
+          fontSize: "0.75rem",
+          fontWeight: "bold",
+          fontFamily: "monospace",
+          width: isMobile ? "100%" : "auto",
+        }}
+      >
+        {antiChainMode ? "Ø ANTI_MODE_ON" : "Ø ANTI_MODE_OFF"}
+      </button>
+      <button
+        onClick={() => setDarkMode(!darkMode)}
+        style={{
+          cursor: "pointer",
+          background: theme.itemBg,
+          color: theme.text,
+          border: `1px solid ${theme.border}`,
+          padding: "8px 12px",
+          fontSize: "0.75rem",
+          fontFamily: "monospace",
+          width: isMobile ? "100%" : "auto",
+        }}
+      >
+        {darkMode ? "☀ LIGHT" : "🌙 DARK"}
+      </button>
+    </>
+  );
+
   return (
     <div
       style={{
@@ -295,169 +374,169 @@ function App() {
     >
       <div
         style={{
-          padding: "2rem",
+          padding: isMobile ? "1rem" : "2rem",
           maxWidth: "1100px",
           margin: "0 auto",
           fontFamily: "monospace",
           position: "relative",
         }}
       >
+        {/* Navigation / Header Layout */}
         <div
           style={{
-            position: "absolute",
-            top: "2rem",
-            right: "2rem",
             display: "flex",
-            gap: "10px",
+            justifyContent: "space-between",
+            alignItems: "center",
+            borderBottom: `2px solid ${antiChainMode ? theme.danger : theme.accent}`,
+            paddingBottom: "1rem",
+            marginBottom: "1.5rem",
           }}
         >
-          <button
-            onClick={() => setMultiPartyMode(!multiPartyMode)}
-            style={{
-              cursor: "pointer",
-              background: multiPartyMode ? theme.accent : theme.itemBg,
-              color: multiPartyMode ? theme.bg : theme.text,
-              border: `1px solid ${theme.border}`,
-              padding: "5px 10px",
-              fontSize: "0.7rem",
-              fontWeight: "bold",
-            }}
-          >
-            {multiPartyMode ? "👥 PARTY_WEAPONS_ON" : "👤 SINGLE_WEAPON_ON"}
-          </button>
-          <button
-            onClick={toggleAntiChain}
-            style={{
-              cursor: "pointer",
-              background: antiChainMode ? theme.danger : theme.itemBg,
-              color: antiChainMode ? "#fff" : theme.text,
-              border: `1px solid ${antiChainMode ? theme.danger : theme.border}`,
-              padding: "5px 10px",
-              fontSize: "0.7rem",
-              fontWeight: "bold",
-            }}
-          >
-            {antiChainMode ? "Ø ANTI_MODE_ON" : "Ø ANTI_MODE_OFF"}
-          </button>
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            style={{
-              cursor: "pointer",
-              background: theme.itemBg,
-              color: theme.text,
-              border: `1px solid ${theme.border}`,
-              padding: "5px 10px",
-              fontSize: "0.7rem",
-            }}
-          >
-            {darkMode ? "☀ LIGHT" : "🌙 DARK"}
-          </button>
+          <h1 style={{ fontSize: isMobile ? "1.4rem" : "2rem", margin: 0 }}>
+            {renderTitle()}
+          </h1>
+
+          {isMobile ? (
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              style={{
+                cursor: "pointer",
+                background: menuOpen ? theme.accent : theme.itemBg,
+                color: menuOpen ? theme.bg : theme.text,
+                border: `1px solid ${theme.border}`,
+                padding: "6px 12px",
+                fontSize: "0.75rem",
+                fontWeight: "bold",
+              }}
+            >
+              {menuOpen ? "[ × CLOSE ]" : "[ ☰ SETTINGS ]"}
+            </button>
+          ) : (
+            <div style={{ display: "flex", gap: "10px" }}>
+              {renderActionButtons()}
+            </div>
+          )}
         </div>
 
-        <header
-          style={{
-            borderBottom: `2px solid ${antiChainMode ? theme.danger : theme.accent}`,
-            marginBottom: "2rem",
-          }}
-        >
-          <h1>{antiChainMode ? "Gnovi's Anti-Chains" : "Gnovi's Chains"}</h1>
+        {/* Mobile Settings Drawer */}
+        {isMobile && menuOpen && (
           <div
             style={{
               display: "flex",
-              flexWrap: "wrap",
-              gap: "5px",
-              marginBottom: "15px",
+              flexDirection: "column",
+              gap: "8px",
+              background: theme.cardBg,
+              padding: "12px",
+              border: `1px solid ${theme.border}`,
+              marginBottom: "1.5rem",
             }}
           >
-            {partySlots.map((weapon) => (
-              <div
-                key={weapon}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  border: `1px solid ${theme.border}`,
-                  background:
-                    activeWeaponType === weapon
-                      ? antiChainMode
-                        ? theme.danger
-                        : theme.accent
-                      : theme.itemBg,
-                }}
-              >
-                <button
-                  onClick={() => setActiveWeaponType(weapon)}
-                  style={{
-                    padding: "8px 15px",
-                    border: "none",
-                    cursor: "pointer",
-                    fontFamily: "monospace",
-                    background: "transparent",
-                    color:
-                      activeWeaponType === weapon
-                        ? antiChainMode
-                          ? "#fff"
-                          : theme.bg
-                        : theme.text,
-                  }}
-                >
-                  {weapon.toUpperCase()}
-                </button>
-                <button
-                  onClick={() => removeFromParty(weapon)}
-                  style={{
-                    padding: "8px 5px",
-                    border: "none",
-                    background: "transparent",
-                    color: theme.danger,
-                    cursor: "pointer",
-                  }}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  setPartySlots([...partySlots, e.target.value]);
-                  setActiveWeaponType(e.target.value);
-                }
-              }}
-              value=""
+            {renderActionButtons()}
+          </div>
+        )}
+
+        {/* Party Slot Configuration Bar */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "5px",
+            marginBottom: "15px",
+          }}
+        >
+          {partySlots.map((weapon) => (
+            <div
+              key={weapon}
               style={{
-                padding: "8px",
-                fontFamily: "monospace",
-                border: `1px dashed ${theme.border}`,
-                background: theme.itemBg,
-                color: theme.text,
+                display: "flex",
+                alignItems: "center",
+                border: `1px solid ${theme.border}`,
+                background:
+                  activeWeaponType === weapon
+                    ? antiChainMode
+                      ? theme.danger
+                      : theme.accent
+                    : theme.itemBg,
               }}
             >
-              <option value="" disabled>
-                + ADD_WEAPON
-              </option>
-              {Object.keys(weaponskills).map((w) => (
-                <option key={w} value={w}>
-                  {w}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={() => setHistory([])}
+              <button
+                onClick={() => setActiveWeaponType(weapon)}
+                style={{
+                  padding: isMobile ? "6px 10px" : "8px 15px",
+                  fontSize: isMobile ? "0.7rem" : "0.85rem",
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "monospace",
+                  background: "transparent",
+                  color:
+                    activeWeaponType === weapon
+                      ? antiChainMode
+                        ? "#fff"
+                        : theme.bg
+                      : theme.text,
+                }}
+              >
+                {weapon.toUpperCase()}
+              </button>
+              <button
+                onClick={() => removeFromParty(weapon)}
+                style={{
+                  padding: "0 6px",
+                  border: "none",
+                  background: "transparent",
+                  color: theme.danger,
+                  cursor: "pointer",
+                  fontSize: isMobile ? "0.85rem" : "1rem",
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <select
+            onChange={(e) => {
+              if (e.target.value) {
+                setPartySlots([...partySlots, e.target.value]);
+                setActiveWeaponType(e.target.value);
+              }
+            }}
+            value=""
             style={{
-              cursor: "pointer",
-              border: `1px solid ${theme.border}`,
+              padding: isMobile ? "6px" : "8px",
+              fontSize: isMobile ? "0.7rem" : "0.85rem",
+              fontFamily: "monospace",
+              border: `1px dashed ${theme.border}`,
               background: theme.itemBg,
               color: theme.text,
-              padding: "5px 10px",
-              fontSize: "0.7rem",
-              marginBottom: "10px",
             }}
           >
-            CLEAR ACTIVE CHAIN
-          </button>
-        </header>
+            <option value="" disabled>
+              + ADD_WEAPON
+            </option>
+            {Object.keys(weaponskills).map((w) => (
+              <option key={w} value={w}>
+                {w}
+              </option>
+            ))}
+          </select>
+        </div>
 
+        <button
+          onClick={() => setHistory([])}
+          style={{
+            cursor: "pointer",
+            border: `1px solid ${theme.border}`,
+            background: theme.itemBg,
+            color: theme.text,
+            padding: "5px 10px",
+            fontSize: "0.7rem",
+            marginBottom: "2rem",
+          }}
+        >
+          CLEAR ACTIVE CHAIN
+        </button>
+
+        {/* Core Processing Panel (Stacked on Mobile) */}
         <section
           style={{
             marginBottom: "3rem",
@@ -469,11 +548,13 @@ function App() {
           <div
             style={{
               display: "flex",
+              flexDirection: isMobile ? "column" : "row",
               justifyContent: "space-between",
               alignItems: "flex-start",
+              gap: "20px",
             }}
           >
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, width: "100%" }}>
               <div
                 style={{
                   fontSize: "0.7rem",
@@ -496,17 +577,23 @@ function App() {
                 {history.map((step, i) => (
                   <div
                     key={i}
-                    style={{ display: "flex", alignItems: "center" }}
+                    style={{
+                      display: "flex",
+                      flexDirection: isMobile ? "column" : "row",
+                      alignItems: isMobile ? "flex-start" : "center",
+                      gap: isMobile ? "6px" : "0px",
+                    }}
                   >
                     <div
                       style={{
-                        width: "240px",
+                        width: isMobile ? "100%" : "240px",
                         padding: "8px",
                         border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
                         background: theme.itemBg,
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
+                        boxSizing: "border-box",
                       }}
                     >
                       <div>
@@ -560,7 +647,7 @@ function App() {
                     {i < history.length - 1 && (
                       <div
                         style={{
-                          padding: "0 20px",
+                          padding: isMobile ? "0 8px" : "0 20px",
                           display: "flex",
                           alignItems: "center",
                           gap: "10px",
@@ -596,8 +683,7 @@ function App() {
             {history.length > 0 && (
               <div
                 style={{
-                  width: "300px",
-                  marginLeft: "20px",
+                  width: isMobile ? "100%" : "300px",
                   display: "flex",
                   flexDirection: "column",
                   gap: "10px",
@@ -688,6 +774,7 @@ function App() {
           </div>
         </section>
 
+        {/* Branch Rendering (Accordions on Mobile) */}
         <section>
           <div
             style={{
@@ -700,97 +787,130 @@ function App() {
             ==
           </div>
           {!isChainClosed ? (
-            Object.entries(groupedNextSteps).map(([element, skills]) => (
-              <div key={element} style={{ marginBottom: "2rem" }}>
-                <div style={{ marginBottom: "12px" }}>
-                  {antiChainMode ? (
-                    <span
-                      style={{
-                        border: `1px solid ${theme.muted}`,
-                        padding: "4px 10px",
-                        color: theme.muted,
-                      }}
-                    >
-                      SAFE_OPTIONS
-                    </span>
-                  ) : element !== "START_NODES" ? (
-                    <span
-                      style={getStyleForElement(
-                        element,
-                        !skills.some((s) => s.isPriority),
-                      )}
-                    >
-                      {element.toUpperCase()}
-                    </span>
-                  ) : (
-                    <span style={{ color: theme.muted }}>
-                      STARTING WEAPON SKILLS ({activeWeaponType.toUpperCase()})
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                  {skills.map((ws, idx) => {
-                    const hasPartyHeader = multiPartyMode && history.length > 0;
-                    return (
-                      <button
-                        key={`${ws.weaponType}-${ws.name}-${idx}`}
-                        onClick={() =>
-                          ws.isPriority && addToChain(ws.name, ws.weaponType)
-                        }
-                        style={{
-                          position: "relative",
-                          padding: "12px",
-                          paddingTop: hasPartyHeader ? "22px" : "12px",
-                          background: theme.itemBg,
-                          color: theme.text,
-                          border: ws.isPriority
-                            ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
-                            : `1px solid ${theme.border}`,
-                          cursor: ws.isPriority ? "pointer" : "not-allowed",
-                          fontFamily: "monospace",
-                          textAlign: "left",
-                          minWidth: "165px",
-                          boxShadow: ws.isPriority
-                            ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
-                            : "none",
-                          opacity: ws.isPriority ? 1 : 0.4,
-                        }}
-                      >
-                        {hasPartyHeader && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              top: "6px",
-                              right: "8px",
-                              fontSize: "0.75rem",
-                              color: ws.isPriority
-                                ? antiChainMode
-                                  ? theme.danger
-                                  : "#b388ff"
-                                : theme.muted,
-                              fontWeight: "bold",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            [{ws.weaponType}]
-                          </div>
-                        )}
-                        <strong>{ws.name}</strong>
-                        <div
+            Object.entries(groupedNextSteps).map(([element, skills]) => {
+              const isSectionOpen = !isMobile || !!expandedSections[element];
+
+              return (
+                <div key={element} style={{ marginBottom: "1.5rem" }}>
+                  <div
+                    onClick={() => isMobile && toggleSection(element)}
+                    style={{
+                      marginBottom: "12px",
+                      cursor: isMobile ? "pointer" : "default",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      background: isMobile ? theme.cardBg : "transparent",
+                      padding: isMobile ? "10px" : "0",
+                      border: isMobile ? `1px solid ${theme.border}` : "none",
+                    }}
+                  >
+                    <div>
+                      {antiChainMode ? (
+                        <span
                           style={{
-                            fontSize: "0.6rem",
+                            border: `1px solid ${theme.muted}`,
+                            padding: "4px 10px",
                             color: theme.muted,
-                            marginTop: "4px",
                           }}
                         >
-                          {getWSProperties(ws.name, ws.weaponType).join(" • ")}
-                        </div>
-                      </button>
-                    );
-                  })}
+                          SAFE_OPTIONS
+                        </span>
+                      ) : element !== "START_NODES" ? (
+                        <span
+                          style={getStyleForElement(
+                            element,
+                            !skills.some((s) => s.isPriority),
+                          )}
+                        >
+                          {element.toUpperCase()}
+                        </span>
+                      ) : (
+                        <span style={{ color: theme.muted }}>
+                          STARTING WEAPON SKILLS ({activeWeaponType.toUpperCase()})
+                        </span>
+                      )}
+                    </div>
+                    {isMobile && (
+                      <span style={{ fontSize: "0.8rem", color: theme.muted }}>
+                        {isSectionOpen ? "[ - COLLAPSE ]" : `[ + EXPAND (${skills.length}) ]`}
+                      </span>
+                    )}
+                  </div>
+
+                  {isSectionOpen && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: "12px",
+                      }}
+                    >
+                      {skills.map((ws, idx) => {
+                        const hasPartyHeader = multiPartyMode && history.length > 0;
+                        return (
+                          <button
+                            key={`${ws.weaponType}-${ws.name}-${idx}`}
+                            onClick={() =>
+                              ws.isPriority && addToChain(ws.name, ws.weaponType)
+                            }
+                            style={{
+                              position: "relative",
+                              padding: "12px",
+                              paddingTop: hasPartyHeader ? "24px" : "12px",
+                              background: theme.itemBg,
+                              color: theme.text,
+                              border: ws.isPriority
+                                ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
+                                : `1px solid ${theme.border}`,
+                              cursor: ws.isPriority ? "pointer" : "not-allowed",
+                              fontFamily: "monospace",
+                              textAlign: "left",
+                              width: isMobile ? "100%" : "165px",
+                              boxSizing: "border-box",
+                              boxShadow: ws.isPriority
+                                ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
+                                : "none",
+                              opacity: ws.isPriority ? 1 : 0.4,
+                            }}
+                          >
+                            {hasPartyHeader && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  top: "6px",
+                                  right: "8px",
+                                  fontSize: "0.75rem",
+                                  color: ws.isPriority
+                                    ? antiChainMode
+                                      ? theme.danger
+                                      : "#b388ff"
+                                    : theme.muted,
+                                  fontWeight: "bold",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                [{ws.weaponType}]
+                              </div>
+                            )}
+                            <strong>{ws.name}</strong>
+                            <div
+                              style={{
+                                fontSize: "0.6rem",
+                                color: theme.muted,
+                                marginTop: "4px",
+                              }}
+                            >
+                              {getWSProperties(ws.name, ws.weaponType).join(" • ")}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : (
             <div
               style={{
