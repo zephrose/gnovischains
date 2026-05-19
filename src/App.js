@@ -64,7 +64,7 @@ function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
+      window.innerWidth <= 768 ? setIsMobile(true) : setIsMobile(false);
     };
     handleResize();
     window.addEventListener("resize", handleResize);
@@ -78,7 +78,7 @@ function App() {
     cardBg: darkMode ? "#1e1e1e" : "#fcfcfc",
     itemBg: darkMode ? "#2c2c2c" : "#fff",
     accent: darkMode ? "#e0e0e0" : "#333",
-    muted: darkMode ? "#777" : "#aaa",
+    muted: darkMode ? "#999" : "#777",
     danger: "#ff4757",
   };
 
@@ -96,11 +96,11 @@ function App() {
       color: ["Light", "Transfixion", "Wind", "Ice"].includes(element)
         ? "#000"
         : "#fff",
-      padding: "2px 6px",
+      padding: "4px 8px",
       borderRadius: "2px",
       fontWeight: "bold",
       display: "inline-block",
-      fontSize: "0.75rem",
+      fontSize: "0.9rem",
       opacity: isInactive ? 0.3 : 1,
     };
     return config.type === "solid"
@@ -315,8 +315,8 @@ function App() {
           background: multiPartyMode ? theme.accent : theme.itemBg,
           color: multiPartyMode ? theme.bg : theme.text,
           border: `1px solid ${theme.border}`,
-          padding: "8px 12px",
-          fontSize: "0.75rem",
+          padding: "10px 14px",
+          fontSize: "0.9rem",
           fontWeight: "bold",
           fontFamily: "monospace",
           width: isMobile ? "100%" : "auto",
@@ -331,8 +331,8 @@ function App() {
           background: antiChainMode ? theme.danger : theme.itemBg,
           color: antiChainMode ? "#fff" : theme.text,
           border: `1px solid ${antiChainMode ? theme.danger : theme.border}`,
-          padding: "8px 12px",
-          fontSize: "0.75rem",
+          padding: "10px 14px",
+          fontSize: "0.9rem",
           fontWeight: "bold",
           fontFamily: "monospace",
           width: isMobile ? "100%" : "auto",
@@ -347,8 +347,8 @@ function App() {
           background: guideOpen ? "#b388ff" : theme.itemBg,
           color: guideOpen ? "#000" : theme.text,
           border: `1px solid ${theme.border}`,
-          padding: "8px 12px",
-          fontSize: "0.75rem",
+          padding: "10px 14px",
+          fontSize: "0.9rem",
           fontWeight: "bold",
           fontFamily: "monospace",
           width: isMobile ? "100%" : "auto",
@@ -363,8 +363,8 @@ function App() {
           background: theme.itemBg,
           color: theme.text,
           border: `1px solid ${theme.border}`,
-          padding: "8px 12px",
-          fontSize: "0.75rem",
+          padding: "10px 14px",
+          fontSize: "0.9rem",
           fontFamily: "monospace",
           width: isMobile ? "100%" : "auto",
         }}
@@ -379,9 +379,9 @@ function App() {
       style={{
         background: theme.cardBg,
         border: `1px solid ${theme.border}`,
-        padding: "16px",
-        fontSize: "0.75rem",
-        lineHeight: "1.4",
+        padding: "18px",
+        fontSize: "0.9rem",
+        lineHeight: "1.5",
         color: theme.text,
         overflowY: "auto",
         maxHeight: isMobile ? "none" : "calc(100vh - 180px)",
@@ -394,6 +394,7 @@ function App() {
           paddingBottom: "6px",
           marginBottom: "12px",
           color: "#b388ff",
+          fontSize: "0.95rem",
         }}
       >
         === SKILLCHAINS ===
@@ -406,7 +407,12 @@ function App() {
       </p>
 
       <div
-        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+        style={{
+          fontWeight: "bold",
+          marginBottom: "6px",
+          color: theme.muted,
+          fontSize: "0.9rem",
+        }}
       >
         [ 1. EXECUTION ORDER ]
       </div>
@@ -420,15 +426,16 @@ function App() {
           margin: "0 0 12px 0",
           fontStyle: "normal",
           background: theme.bg,
-          padding: "8px",
+          padding: "10px",
           border: `1px dashed ${theme.border}`,
+          fontSize: "0.85rem",
         }}
       >
-        {`  STEP 1: STARTER
+        {`  STEP 1: STARTER (A)
   └─ Prop: [Detonation]
          │
          ▼ 
-  STEP 2: CLOSER
+  STEP 2: CLOSER (B)
   └─ Prop: [Scission]
          │
          ▼ 
@@ -444,7 +451,12 @@ function App() {
       </p>
 
       <div
-        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+        style={{
+          fontWeight: "bold",
+          marginBottom: "6px",
+          color: theme.muted,
+          fontSize: "0.9rem",
+        }}
       >
         [ 2. CONTINUATION & TIERS ]
       </div>
@@ -452,7 +464,7 @@ function App() {
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: "8px",
+          gap: "10px",
           marginBottom: "16px",
         }}
       >
@@ -487,7 +499,12 @@ function App() {
       </div>
 
       <div
-        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+        style={{
+          fontWeight: "bold",
+          marginBottom: "6px",
+          color: theme.muted,
+          fontSize: "0.9rem",
+        }}
       >
         [ 3. TIER TERMINATION ]
       </div>
@@ -497,7 +514,12 @@ function App() {
         <span style={getStyleForElement("Darkness")}>Darkness</span>.
       </p>
       <div
-        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+        style={{
+          fontWeight: "bold",
+          marginBottom: "6px",
+          color: theme.muted,
+          fontSize: "0.9rem",
+        }}
       >
         [ 3.5. TIER 4 & ULTIMATE WEAPON INTERACTIONS ]
       </div>
@@ -523,7 +545,7 @@ function App() {
     >
       <div
         style={{
-          padding: isMobile ? "1rem" : "2rem",
+          padding: isMobile ? "1.2rem" : "2.5rem",
           maxWidth: "1200px",
           margin: "0 auto",
           fontFamily: "monospace",
@@ -537,11 +559,11 @@ function App() {
             justifyContent: "space-between",
             alignItems: "center",
             borderBottom: `2px solid ${antiChainMode ? theme.danger : theme.accent}`,
-            paddingBottom: "1rem",
-            marginBottom: "1.5rem",
+            paddingBottom: "1.2rem",
+            marginBottom: "1.8rem",
           }}
         >
-          <h1 style={{ fontSize: isMobile ? "1.4rem" : "2rem", margin: 0 }}>
+          <h1 style={{ fontSize: isMobile ? "1.6rem" : "2.4rem", margin: 0 }}>
             {antiChainMode ? "Gnovi's Anti-Chains" : "Gnovi's Chains"}
           </h1>
 
@@ -553,15 +575,15 @@ function App() {
                 background: menuOpen ? theme.accent : theme.itemBg,
                 color: menuOpen ? theme.bg : theme.text,
                 border: `1px solid ${theme.border}`,
-                padding: "6px 12px",
-                fontSize: "0.75rem",
+                padding: "8px 14px",
+                fontSize: "0.9rem",
                 fontWeight: "bold",
               }}
             >
               {menuOpen ? "[ × CLOSE ]" : "[ ☰ SETTINGS ]"}
             </button>
           ) : (
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div style={{ display: "flex", gap: "12px" }}>
               {renderActionButtons()}
             </div>
           )}
@@ -573,11 +595,11 @@ function App() {
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "8px",
+              gap: "10px",
               background: theme.cardBg,
-              padding: "12px",
+              padding: "14px",
               border: `1px solid ${theme.border}`,
-              marginBottom: "1.5rem",
+              marginBottom: "1.8rem",
             }}
           >
             {renderActionButtons()}
@@ -586,11 +608,11 @@ function App() {
 
         {/* Mobile Inline Guide Display */}
         {isMobile && guideOpen && (
-          <div style={{ marginBottom: "1.5rem" }}>{renderBlueprintGuide()}</div>
+          <div style={{ marginBottom: "1.8rem" }}>{renderBlueprintGuide()}</div>
         )}
 
         {/* Split Workbench Viewport */}
-        <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+        <div style={{ display: "flex", gap: "28px", alignItems: "flex-start" }}>
           {/* Left Block Workspace Container */}
           <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
             {/* Party Slot Configuration Bar */}
@@ -598,8 +620,8 @@ function App() {
               style={{
                 display: "flex",
                 flexWrap: "wrap",
-                gap: "5px",
-                marginBottom: "15px",
+                gap: "8px",
+                marginBottom: "18px",
               }}
             >
               {partySlots.map((weapon) => (
@@ -620,8 +642,8 @@ function App() {
                   <button
                     onClick={() => setActiveWeaponType(weapon)}
                     style={{
-                      padding: isMobile ? "6px 10px" : "8px 15px",
-                      fontSize: isMobile ? "0.7rem" : "0.85rem",
+                      padding: isMobile ? "8px 12px" : "10px 18px",
+                      fontSize: isMobile ? "0.85rem" : "1rem",
                       border: "none",
                       cursor: "pointer",
                       fontFamily: "monospace",
@@ -639,12 +661,12 @@ function App() {
                   <button
                     onClick={() => removeFromParty(weapon)}
                     style={{
-                      padding: "0 6px",
+                      padding: "0 8px",
                       border: "none",
                       background: "transparent",
                       color: theme.danger,
                       cursor: "pointer",
-                      fontSize: isMobile ? "0.85rem" : "1rem",
+                      fontSize: isMobile ? "1rem" : "1.15rem",
                     }}
                   >
                     ×
@@ -660,8 +682,8 @@ function App() {
                 }}
                 value=""
                 style={{
-                  padding: isMobile ? "6px" : "8px",
-                  fontSize: isMobile ? "0.7rem" : "0.85rem",
+                  padding: isMobile ? "8px" : "10px",
+                  fontSize: isMobile ? "0.85rem" : "1rem",
                   fontFamily: "monospace",
                   border: `1px dashed ${theme.border}`,
                   background: theme.itemBg,
@@ -688,9 +710,9 @@ function App() {
                 border: `1px solid ${theme.border}`,
                 background: theme.itemBg,
                 color: theme.text,
-                padding: "5px 10px",
-                fontSize: "0.7rem",
-                marginBottom: "2rem",
+                padding: "6px 12px",
+                fontSize: "0.85rem",
+                marginBottom: "2.2rem",
               }}
             >
               CLEAR ACTIVE CHAIN
@@ -699,9 +721,9 @@ function App() {
             {/* Core Processing Panel */}
             <section
               style={{
-                marginBottom: "3rem",
+                marginBottom: "3.5rem",
                 background: theme.cardBg,
-                padding: "15px",
+                padding: "18px",
                 border: `1px solid ${darkMode ? "#333" : "#eee"}`,
               }}
             >
@@ -711,15 +733,15 @@ function App() {
                   flexDirection: isMobile ? "column" : "row",
                   justifyContent: "space-between",
                   alignItems: "flex-start",
-                  gap: "20px",
+                  gap: "24px",
                 }}
               >
                 <div style={{ flex: 1, width: "100%" }}>
                   <div
                     style={{
-                      fontSize: "0.7rem",
+                      fontSize: "0.85rem",
                       color: theme.muted,
-                      marginBottom: "10px",
+                      marginBottom: "12px",
                     }}
                   >
                     == Active Chain ==
@@ -728,11 +750,13 @@ function App() {
                     style={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: "10px",
+                      gap: "12px",
                     }}
                   >
                     {history.length === 0 && (
-                      <div style={{ color: theme.muted }}>- idle -</div>
+                      <div style={{ color: theme.muted, fontSize: "0.95rem" }}>
+                        - idle -
+                      </div>
                     )}
                     {history.map((step, i) => (
                       <div
@@ -741,13 +765,13 @@ function App() {
                           display: "flex",
                           flexDirection: isMobile ? "column" : "row",
                           alignItems: isMobile ? "flex-start" : "center",
-                          gap: isMobile ? "6px" : "0px",
+                          gap: isMobile ? "8px" : "16px",
                         }}
                       >
                         <div
                           style={{
-                            width: isMobile ? "100%" : "240px",
-                            padding: "8px",
+                            width: isMobile ? "100%" : "260px",
+                            padding: "10px",
                             border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
                             background: theme.itemBg,
                             display: "flex",
@@ -758,15 +782,20 @@ function App() {
                         >
                           <div>
                             <div
-                              style={{ fontSize: "0.6rem", color: theme.muted }}
+                              style={{
+                                fontSize: "0.75rem",
+                                color: theme.muted,
+                              }}
                             >
                               {step.weaponType}
                             </div>
-                            <div style={{ fontWeight: "bold" }}>
+                            <div
+                              style={{ fontWeight: "bold", fontSize: "1rem" }}
+                            >
                               {step.name}
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: "4px" }}>
+                          <div style={{ display: "flex", gap: "6px" }}>
                             <button
                               onClick={() => moveStep(i, -1)}
                               disabled={i === 0}
@@ -776,6 +805,7 @@ function App() {
                                 border: "none",
                                 cursor: i === 0 ? "default" : "pointer",
                                 opacity: i === 0 ? 0.2 : 1,
+                                fontSize: "1rem",
                               }}
                             >
                               ▲
@@ -792,6 +822,7 @@ function App() {
                                     ? "default"
                                     : "pointer",
                                 opacity: i === history.length - 1 ? 0.2 : 1,
+                                fontSize: "1rem",
                               }}
                             >
                               ▼
@@ -803,47 +834,54 @@ function App() {
                                 color: theme.danger,
                                 border: "none",
                                 cursor: "pointer",
-                                marginLeft: "4px",
+                                marginLeft: "6px",
+                                fontSize: "1.1rem",
                               }}
                             >
                               ×
                             </button>
                           </div>
                         </div>
-                        {i < history.length - 1 && (
+
+                        {/* Result Badge rendered next to the second and subsequent skills */}
+                        {i > 0 && (
                           <div
                             style={{
-                              padding: isMobile ? "0 8px" : "0 20px",
+                              padding: "0 8px",
                               display: "flex",
                               alignItems: "center",
                               gap: "10px",
                             }}
                           >
-                            <span style={{ color: darkMode ? "#444" : "#ccc" }}>
-                              ▶
+                            <span
+                              style={{
+                                color: darkMode ? "#ccc" : "#444",
+                                fontSize: "1rem",
+                              }}
+                            >
+                              ◀
                             </span>
                             {antiChainMode ? (
                               <span
                                 style={{
-                                  fontSize: "1.2rem",
+                                  fontSize: "1.35rem",
                                   color: theme.muted,
                                 }}
                               >
                                 ∅
                               </span>
                             ) : (
-                              <span
-                                style={getStyleForElement(
-                                  history[i + 1].scResult,
-                                )}
-                              >
-                                {history[i + 1].scResult?.toUpperCase()}{" "}
-                                {history[i + 1].isLevel4 ? "LV4" : ""}
+                              <span style={getStyleForElement(step.scResult)}>
+                                {step.scResult?.toUpperCase()}{" "}
+                                {step.isLevel4 ? "LV4" : ""}
                               </span>
                             )}
-                            <span style={{ color: darkMode ? "#444" : "#ccc" }}>
-                              ▶
-                            </span>
+                            <span
+                              style={{
+                                color: darkMode ? "#ccc" : "#444",
+                                fontSize: "1rem",
+                              }}
+                            ></span>
                           </div>
                         )}
                       </div>
@@ -854,25 +892,25 @@ function App() {
                 {history.length > 0 && (
                   <div
                     style={{
-                      width: isMobile ? "100%" : "300px",
+                      width: isMobile ? "100%" : "320px",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "10px",
+                      gap: "12px",
                     }}
                   >
-                    <div style={{ fontSize: "0.7rem", color: theme.muted }}>
+                    <div style={{ fontSize: "0.85rem", color: theme.muted }}>
                       == Export ==
                     </div>
                     <button
                       onClick={() => handleCopy("simple")}
                       style={{
                         textAlign: "left",
-                        padding: "10px",
+                        padding: "12px",
                         background: theme.itemBg,
                         color: theme.text,
                         border: `1px solid ${theme.border}`,
                         cursor: "pointer",
-                        fontSize: "0.7rem",
+                        fontSize: "0.85rem",
                         fontFamily: "monospace",
                       }}
                     >
@@ -894,12 +932,12 @@ function App() {
                         onClick={() => handleCopy("detailed")}
                         style={{
                           textAlign: "left",
-                          padding: "10px",
+                          padding: "12px",
                           background: theme.itemBg,
                           color: theme.text,
                           border: `1px solid ${theme.border}`,
                           cursor: "pointer",
-                          fontSize: "0.7rem",
+                          fontSize: "0.85rem",
                           fontFamily: "monospace",
                         }}
                       >
@@ -924,12 +962,12 @@ function App() {
                         onClick={() => handleCopy("all-safe")}
                         style={{
                           textAlign: "left",
-                          padding: "10px",
+                          padding: "12px",
                           background: theme.itemBg,
                           color: theme.text,
                           border: `1px solid ${theme.border}`,
                           cursor: "pointer",
-                          fontSize: "0.7rem",
+                          fontSize: "0.85rem",
                           fontFamily: "monospace",
                         }}
                       >
@@ -939,7 +977,9 @@ function App() {
                           [ COPY_ALL_SAFE_FOLLOWUPS ]{" "}
                           {copyFeedback === "all-safe" && "✓"}
                         </div>
-                        <div style={{ fontSize: "0.6rem" }}>
+                        <div
+                          style={{ fontSize: "0.75rem", color: theme.muted }}
+                        >
                           Generates multiline list of all ∅ options
                         </div>
                       </button>
@@ -953,7 +993,7 @@ function App() {
             <section>
               <div
                 style={{
-                  fontSize: "0.7rem",
+                  fontSize: "0.85rem",
                   color: theme.muted,
                   marginBottom: "1.5rem",
                 }}
@@ -970,17 +1010,17 @@ function App() {
                     !isMobile || !!expandedSections[element];
 
                   return (
-                    <div key={element} style={{ marginBottom: "1.5rem" }}>
+                    <div key={element} style={{ marginBottom: "1.8rem" }}>
                       <div
                         onClick={() => isMobile && toggleSection(element)}
                         style={{
-                          marginBottom: "12px",
+                          marginBottom: "14px",
                           cursor: isMobile ? "pointer" : "default",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
                           background: isMobile ? theme.cardBg : "transparent",
-                          padding: isMobile ? "10px" : "0",
+                          padding: isMobile ? "12px" : "0",
                           border: isMobile
                             ? `1px solid ${theme.border}`
                             : "none",
@@ -991,8 +1031,9 @@ function App() {
                             <span
                               style={{
                                 border: `1px solid ${theme.muted}`,
-                                padding: "4px 10px",
+                                padding: "6px 12px",
                                 color: theme.muted,
+                                fontSize: "0.9rem",
                               }}
                             >
                               SAFE_OPTIONS
@@ -1007,7 +1048,9 @@ function App() {
                               {element.toUpperCase()}
                             </span>
                           ) : (
-                            <span style={{ color: theme.muted }}>
+                            <span
+                              style={{ color: theme.muted, fontSize: "0.9rem" }}
+                            >
                               STARTING WEAPON SKILLS (
                               {activeWeaponType.toUpperCase()})
                             </span>
@@ -1015,7 +1058,7 @@ function App() {
                         </div>
                         {isMobile && (
                           <span
-                            style={{ fontSize: "0.8rem", color: theme.muted }}
+                            style={{ fontSize: "0.95rem", color: theme.muted }}
                           >
                             {isSectionOpen
                               ? "[ - COLLAPSE ]"
@@ -1029,7 +1072,7 @@ function App() {
                           style={{
                             display: "flex",
                             flexWrap: "wrap",
-                            gap: "12px",
+                            gap: "14px",
                           }}
                         >
                           {skills.map((ws, idx) => {
@@ -1044,8 +1087,8 @@ function App() {
                                 }
                                 style={{
                                   position: "relative",
-                                  padding: "12px",
-                                  paddingTop: hasPartyHeader ? "24px" : "12px",
+                                  padding: "14px",
+                                  paddingTop: hasPartyHeader ? "26px" : "14px",
                                   background: theme.itemBg,
                                   color: theme.text,
                                   border: ws.isPriority
@@ -1056,7 +1099,7 @@ function App() {
                                     : "not-allowed",
                                   fontFamily: "monospace",
                                   textAlign: "left",
-                                  width: isMobile ? "100%" : "165px",
+                                  width: isMobile ? "100%" : "185px",
                                   boxSizing: "border-box",
                                   boxShadow: ws.isPriority
                                     ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
@@ -1069,8 +1112,8 @@ function App() {
                                     style={{
                                       position: "absolute",
                                       top: "6px",
-                                      right: "8px",
-                                      fontSize: "0.75rem",
+                                      right: "10px",
+                                      fontSize: "0.85rem",
                                       color: ws.isPriority
                                         ? antiChainMode
                                           ? theme.danger
@@ -1083,12 +1126,14 @@ function App() {
                                     [{ws.weaponType}]
                                   </div>
                                 )}
-                                <strong>{ws.name}</strong>
+                                <strong style={{ fontSize: "1rem" }}>
+                                  {ws.name}
+                                </strong>
                                 <div
                                   style={{
-                                    fontSize: "0.6rem",
+                                    fontSize: "0.75rem",
                                     color: theme.muted,
-                                    marginTop: "4px",
+                                    marginTop: "6px",
                                   }}
                                 >
                                   {getWSProperties(ws.name, ws.weaponType).join(
@@ -1111,6 +1156,8 @@ function App() {
                     color: "#e74c3c",
                     textAlign: "center",
                     background: theme.itemBg,
+                    fontSize: "1rem",
+                    fontWeight: "bold",
                   }}
                 >
                   [ CHAIN_TERMINATED ]
@@ -1123,7 +1170,7 @@ function App() {
           {!isMobile && guideOpen && (
             <div
               style={{
-                width: "360px",
+                width: "380px",
                 flexShrink: 0,
                 position: "sticky",
                 top: "2rem",
@@ -1136,7 +1183,7 @@ function App() {
       </div>
       <footer
         style={{
-          padding: "2rem",
+          padding: "2.5rem",
           textAlign: "center",
           borderTop: `1px solid ${theme.border}`,
           background: theme.bg,
@@ -1149,10 +1196,10 @@ function App() {
           style={{
             textDecoration: "none",
             color: theme.muted,
-            fontSize: "0.7rem",
+            fontSize: "0.85rem",
             fontFamily: "monospace",
             border: `1px solid ${theme.border}`,
-            padding: "5px 15px",
+            padding: "6px 18px",
             transition: "color 0.2s",
           }}
           onMouseOver={(e) => (e.currentTarget.style.color = theme.text)}
