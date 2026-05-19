@@ -44,28 +44,29 @@ const ELEMENT_MAP = {
 function App() {
   const [history, setHistory] = useState([]);
   const [partySlots, setPartySlots] = useState([
-    "Sword",
     "Hand-to-Hand",
+    "Sword",
     "Club",
     "Dagger",
     "Katana",
   ]);
-  const [activeWeaponType, setActiveWeaponType] = useState("Sword");
+  const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
   const [darkMode, setDarkMode] = useState(true);
   const [antiChainMode, setAntiChainMode] = useState(false);
   const [multiPartyMode, setMultiPartyMode] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
 
-  // Responsive & Mobile State Management
+  // Responsive & Interactive Guide States
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({});
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    handleResize(); // Initial check
+    handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
@@ -88,12 +89,6 @@ function App() {
     }));
   };
 
-  const renderTitle = () => {
-    if (antiChainMode) return "Gnovi's Anti-Chains";
-    if (multiPartyMode) return "Gnovi's Party-Chains";
-    return "Gnovi's Chains";
-  };
-
   const getStyleForElement = (element, isInactive = false) => {
     const config = ELEMENT_MAP[element];
     if (!config) return { backgroundColor: theme.itemBg, color: theme.text };
@@ -101,11 +96,11 @@ function App() {
       color: ["Light", "Transfixion", "Wind", "Ice"].includes(element)
         ? "#000"
         : "#fff",
-      padding: "4px 10px",
+      padding: "2px 6px",
       borderRadius: "2px",
       fontWeight: "bold",
       display: "inline-block",
-      fontSize: "0.85rem",
+      fontSize: "0.75rem",
       opacity: isInactive ? 0.3 : 1,
     };
     return config.type === "solid"
@@ -327,7 +322,7 @@ function App() {
           width: isMobile ? "100%" : "auto",
         }}
       >
-        {multiPartyMode ? "👥 PARTY_WEAPONS_ON" : "👤 SINGLE_WEAPON_ON"}
+        {multiPartyMode ? "👥 PARTY_WEAPONS" : "👤 SINGLE_WEAPON"}
       </button>
       <button
         onClick={toggleAntiChain}
@@ -343,7 +338,23 @@ function App() {
           width: isMobile ? "100%" : "auto",
         }}
       >
-        {antiChainMode ? "Ø ANTI_MODE_ON" : "Ø ANTI_MODE_OFF"}
+        {antiChainMode ? "Ø ANTI_MODE" : "Ø ANTI_MODE"}
+      </button>
+      <button
+        onClick={() => setGuideOpen(!guideOpen)}
+        style={{
+          cursor: "pointer",
+          background: guideOpen ? "#b388ff" : theme.itemBg,
+          color: guideOpen ? "#000" : theme.text,
+          border: `1px solid ${theme.border}`,
+          padding: "8px 12px",
+          fontSize: "0.75rem",
+          fontWeight: "bold",
+          fontFamily: "monospace",
+          width: isMobile ? "100%" : "auto",
+        }}
+      >
+        {guideOpen ? "📖 GUIDE_OPEN" : "📖 GUIDE_CLOSED"}
       </button>
       <button
         onClick={() => setDarkMode(!darkMode)}
@@ -358,9 +369,147 @@ function App() {
           width: isMobile ? "100%" : "auto",
         }}
       >
-        {darkMode ? "☀ LIGHT" : "🌙 DARK"}
+        {darkMode ? "☀" : "🌙"}
       </button>
     </>
+  );
+
+  const renderBlueprintGuide = () => (
+    <div
+      style={{
+        background: theme.cardBg,
+        border: `1px solid ${theme.border}`,
+        padding: "16px",
+        fontSize: "0.75rem",
+        lineHeight: "1.4",
+        color: theme.text,
+        overflowY: "auto",
+        maxHeight: isMobile ? "none" : "calc(100vh - 180px)",
+      }}
+    >
+      <div
+        style={{
+          fontWeight: "bold",
+          borderBottom: `1px solid ${theme.border}`,
+          paddingBottom: "6px",
+          marginBottom: "12px",
+          color: "#b388ff",
+        }}
+      >
+        === SKILLCHAINS ===
+      </div>
+
+      <p style={{ margin: "0 0 12px 0" }}>
+        Skillchains occur when specific Weaponskills successfully strike
+        sequentially within a <strong>3-10 seconds window</strong>, with
+        execution order being critical.
+      </p>
+
+      <div
+        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+      >
+        [ 1. EXECUTION ORDER ]
+      </div>
+      <p style={{ margin: "0 0 8px 0" }}>
+        Properties do not automatically link both ways. Order dictates the chain
+        results:
+      </p>
+
+      <pre
+        style={{
+          margin: "0 0 12px 0",
+          fontStyle: "normal",
+          background: theme.bg,
+          padding: "8px",
+          border: `1px dashed ${theme.border}`,
+        }}
+      >
+        {`  STEP 1: STARTER
+  └─ Prop: [Detonation]
+         │
+         ▼ 
+  STEP 2: CLOSER
+  └─ Prop: [Scission]
+         │
+         ▼ 
+  RESULT: [Scission]`}
+      </pre>
+      <p style={{ margin: "0 0 12px 0" }}>
+        <strong>Reciprocal</strong> chains can reverse execution order to create
+        the chains elemental ending properties. <br />
+        <strong>Non-reciprocal</strong> chains such as{" "}
+        <span style={getStyleForElement("Liquefaction")}>Liquefaction</span>{" "}
+        then <span style={getStyleForElement("Detonation")}>Detonation</span>{" "}
+        creates ∅ Skillchain.
+      </p>
+
+      <div
+        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+      >
+        [ 2. CONTINUATION & TIERS ]
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          marginBottom: "16px",
+        }}
+      >
+        <div>
+          <span>LV1 (Basic): </span>
+          <span style={getStyleForElement("Detonation")}>
+            DETONATION
+          </span> + <span style={getStyleForElement("Scission")}>SCISSON</span>{" "}
+          = <span style={getStyleForElement("Scission")}>SCISSON</span>
+        </div>
+        <div>
+          <span>LV2 (3 Step): </span>
+          <span style={getStyleForElement("Impaction")}>IMPACTION</span> +{" "}
+          <span style={getStyleForElement("Liquefaction")}>LIQUEFACTION</span> +{" "}
+          <span style={getStyleForElement("Impaction")}>IMPACTION</span> ={" "}
+          <span style={getStyleForElement("Fusion")}>FUSION</span>
+        </div>
+        <div>
+          <span>LV2 (Hybrid - 2 Step): </span>
+          <span style={getStyleForElement("Fragmentation")}>
+            FRAGMENTATION
+          </span>{" "}
+          + <span style={getStyleForElement("Distortion")}>DISTORTION</span> ={" "}
+          <span style={getStyleForElement("Distortion")}>DISTORTION</span>
+        </div>
+        <div>
+          <span>LV3 (Ultimate): </span>
+          <span style={getStyleForElement("Fusion")}>Fusion</span> +{" "}
+          <span style={getStyleForElement("Fragmentation")}>Fragmentation</span>{" "}
+          = <span style={getStyleForElement("Light")}>Light</span>
+        </div>
+      </div>
+
+      <div
+        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+      >
+        [ 3. TIER TERMINATION ]
+      </div>
+      <p style={{ margin: "0 0 8px 0" }}>
+        Reaching Level 3 Skillchains ends the progression of elemental
+        properties: <span style={getStyleForElement("Light")}>Light</span> or{" "}
+        <span style={getStyleForElement("Darkness")}>Darkness</span>.
+      </p>
+      <div
+        style={{ fontWeight: "bold", marginBottom: "6px", color: theme.muted }}
+      >
+        [ 3.5. TIER 4 & ULTIMATE WEAPON INTERACTIONS ]
+      </div>
+      <p style={{ margin: "0 0 0 0" }}>
+        Performing a follow up Level 3 Weaponskill with an Ultimate Weapon of
+        the same Level 3 element creates a final Level 4{" "}
+        <span style={getStyleForElement("Light")}>Light</span> or{" "}
+        <span style={getStyleForElement("Darkness")}>Darkness</span> (Aeonic
+        with AM : <span style={getStyleForElement("Light")}>Radiance</span> or{" "}
+        <span style={getStyleForElement("Darkness")}>Umbra</span>)
+      </p>
+    </div>
   );
 
   return (
@@ -375,13 +524,13 @@ function App() {
       <div
         style={{
           padding: isMobile ? "1rem" : "2rem",
-          maxWidth: "1100px",
+          maxWidth: "1200px",
           margin: "0 auto",
           fontFamily: "monospace",
           position: "relative",
         }}
       >
-        {/* Navigation / Header Layout */}
+        {/* Navigation Head Layout */}
         <div
           style={{
             display: "flex",
@@ -393,7 +542,7 @@ function App() {
           }}
         >
           <h1 style={{ fontSize: isMobile ? "1.4rem" : "2rem", margin: 0 }}>
-            {renderTitle()}
+            {antiChainMode ? "Gnovi's Anti-Chains" : "Gnovi's Chains"}
           </h1>
 
           {isMobile ? (
@@ -435,496 +584,555 @@ function App() {
           </div>
         )}
 
-        {/* Party Slot Configuration Bar */}
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "5px",
-            marginBottom: "15px",
-          }}
-        >
-          {partySlots.map((weapon) => (
+        {/* Mobile Inline Guide Display */}
+        {isMobile && guideOpen && (
+          <div style={{ marginBottom: "1.5rem" }}>{renderBlueprintGuide()}</div>
+        )}
+
+        {/* Split Workbench Viewport */}
+        <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
+          {/* Left Block Workspace Container */}
+          <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
+            {/* Party Slot Configuration Bar */}
             <div
-              key={weapon}
               style={{
                 display: "flex",
-                alignItems: "center",
-                border: `1px solid ${theme.border}`,
-                background:
-                  activeWeaponType === weapon
-                    ? antiChainMode
-                      ? theme.danger
-                      : theme.accent
-                    : theme.itemBg,
+                flexWrap: "wrap",
+                gap: "5px",
+                marginBottom: "15px",
               }}
             >
-              <button
-                onClick={() => setActiveWeaponType(weapon)}
+              {partySlots.map((weapon) => (
+                <div
+                  key={weapon}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    border: `1px solid ${theme.border}`,
+                    background:
+                      activeWeaponType === weapon
+                        ? antiChainMode
+                          ? theme.danger
+                          : theme.accent
+                        : theme.itemBg,
+                  }}
+                >
+                  <button
+                    onClick={() => setActiveWeaponType(weapon)}
+                    style={{
+                      padding: isMobile ? "6px 10px" : "8px 15px",
+                      fontSize: isMobile ? "0.7rem" : "0.85rem",
+                      border: "none",
+                      cursor: "pointer",
+                      fontFamily: "monospace",
+                      background: "transparent",
+                      color:
+                        activeWeaponType === weapon
+                          ? antiChainMode
+                            ? "#fff"
+                            : theme.bg
+                          : theme.text,
+                    }}
+                  >
+                    {weapon.toUpperCase()}
+                  </button>
+                  <button
+                    onClick={() => removeFromParty(weapon)}
+                    style={{
+                      padding: "0 6px",
+                      border: "none",
+                      background: "transparent",
+                      color: theme.danger,
+                      cursor: "pointer",
+                      fontSize: isMobile ? "0.85rem" : "1rem",
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <select
+                onChange={(e) => {
+                  if (e.target.value && !partySlots.includes(e.target.value)) {
+                    setPartySlots([...partySlots, e.target.value]);
+                    setActiveWeaponType(e.target.value);
+                  }
+                }}
+                value=""
                 style={{
-                  padding: isMobile ? "6px 10px" : "8px 15px",
+                  padding: isMobile ? "6px" : "8px",
                   fontSize: isMobile ? "0.7rem" : "0.85rem",
-                  border: "none",
-                  cursor: "pointer",
                   fontFamily: "monospace",
-                  background: "transparent",
-                  color:
-                    activeWeaponType === weapon
-                      ? antiChainMode
-                        ? "#fff"
-                        : theme.bg
-                      : theme.text,
+                  border: `1px dashed ${theme.border}`,
+                  background: theme.itemBg,
+                  color: theme.text,
                 }}
               >
-                {weapon.toUpperCase()}
-              </button>
-              <button
-                onClick={() => removeFromParty(weapon)}
-                style={{
-                  padding: "0 6px",
-                  border: "none",
-                  background: "transparent",
-                  color: theme.danger,
-                  cursor: "pointer",
-                  fontSize: isMobile ? "0.85rem" : "1rem",
-                }}
-              >
-                ×
-              </button>
+                <option value="" disabled>
+                  + ADD_WEAPON
+                </option>
+                {Object.keys(weaponskills)
+                  .filter((w) => !partySlots.includes(w))
+                  .map((w) => (
+                    <option key={w} value={w}>
+                      {w}
+                    </option>
+                  ))}
+              </select>
             </div>
-          ))}
-          <select
-            onChange={(e) => {
-              if (e.target.value) {
-                setPartySlots([...partySlots, e.target.value]);
-                setActiveWeaponType(e.target.value);
-              }
-            }}
-            value=""
-            style={{
-              padding: isMobile ? "6px" : "8px",
-              fontSize: isMobile ? "0.7rem" : "0.85rem",
-              fontFamily: "monospace",
-              border: `1px dashed ${theme.border}`,
-              background: theme.itemBg,
-              color: theme.text,
-            }}
-          >
-            <option value="" disabled>
-              + ADD_WEAPON
-            </option>
-            {Object.keys(weaponskills).map((w) => (
-              <option key={w} value={w}>
-                {w}
-              </option>
-            ))}
-          </select>
-        </div>
 
-        <button
-          onClick={() => setHistory([])}
-          style={{
-            cursor: "pointer",
-            border: `1px solid ${theme.border}`,
-            background: theme.itemBg,
-            color: theme.text,
-            padding: "5px 10px",
-            fontSize: "0.7rem",
-            marginBottom: "2rem",
-          }}
-        >
-          CLEAR ACTIVE CHAIN
-        </button>
+            <button
+              onClick={() => setHistory([])}
+              style={{
+                cursor: "pointer",
+                border: `1px solid ${theme.border}`,
+                background: theme.itemBg,
+                color: theme.text,
+                padding: "5px 10px",
+                fontSize: "0.7rem",
+                marginBottom: "2rem",
+              }}
+            >
+              CLEAR ACTIVE CHAIN
+            </button>
 
-        {/* Core Processing Panel (Stacked on Mobile) */}
-        <section
-          style={{
-            marginBottom: "3rem",
-            background: theme.cardBg,
-            padding: "15px",
-            border: `1px solid ${darkMode ? "#333" : "#eee"}`,
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: isMobile ? "column" : "row",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: "20px",
-            }}
-          >
-            <div style={{ flex: 1, width: "100%" }}>
+            {/* Core Processing Panel */}
+            <section
+              style={{
+                marginBottom: "3rem",
+                background: theme.cardBg,
+                padding: "15px",
+                border: `1px solid ${darkMode ? "#333" : "#eee"}`,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: isMobile ? "column" : "row",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "20px",
+                }}
+              >
+                <div style={{ flex: 1, width: "100%" }}>
+                  <div
+                    style={{
+                      fontSize: "0.7rem",
+                      color: theme.muted,
+                      marginBottom: "10px",
+                    }}
+                  >
+                    == Active Chain ==
+                  </div>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "10px",
+                    }}
+                  >
+                    {history.length === 0 && (
+                      <div style={{ color: theme.muted }}>- idle -</div>
+                    )}
+                    {history.map((step, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex",
+                          flexDirection: isMobile ? "column" : "row",
+                          alignItems: isMobile ? "flex-start" : "center",
+                          gap: isMobile ? "6px" : "0px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: isMobile ? "100%" : "240px",
+                            padding: "8px",
+                            border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
+                            background: theme.itemBg,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{ fontSize: "0.6rem", color: theme.muted }}
+                            >
+                              {step.weaponType}
+                            </div>
+                            <div style={{ fontWeight: "bold" }}>
+                              {step.name}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "4px" }}>
+                            <button
+                              onClick={() => moveStep(i, -1)}
+                              disabled={i === 0}
+                              style={{
+                                background: "transparent",
+                                color: theme.text,
+                                border: "none",
+                                cursor: i === 0 ? "default" : "pointer",
+                                opacity: i === 0 ? 0.2 : 1,
+                              }}
+                            >
+                              ▲
+                            </button>
+                            <button
+                              onClick={() => moveStep(i, 1)}
+                              disabled={i === history.length - 1}
+                              style={{
+                                background: "transparent",
+                                color: theme.text,
+                                border: "none",
+                                cursor:
+                                  i === history.length - 1
+                                    ? "default"
+                                    : "pointer",
+                                opacity: i === history.length - 1 ? 0.2 : 1,
+                              }}
+                            >
+                              ▼
+                            </button>
+                            <button
+                              onClick={() => removeStep(i)}
+                              style={{
+                                background: "transparent",
+                                color: theme.danger,
+                                border: "none",
+                                cursor: "pointer",
+                                marginLeft: "4px",
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                        {i < history.length - 1 && (
+                          <div
+                            style={{
+                              padding: isMobile ? "0 8px" : "0 20px",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "10px",
+                            }}
+                          >
+                            <span style={{ color: darkMode ? "#444" : "#ccc" }}>
+                              ▶
+                            </span>
+                            {antiChainMode ? (
+                              <span
+                                style={{
+                                  fontSize: "1.2rem",
+                                  color: theme.muted,
+                                }}
+                              >
+                                ∅
+                              </span>
+                            ) : (
+                              <span
+                                style={getStyleForElement(
+                                  history[i + 1].scResult,
+                                )}
+                              >
+                                {history[i + 1].scResult?.toUpperCase()}{" "}
+                                {history[i + 1].isLevel4 ? "LV4" : ""}
+                              </span>
+                            )}
+                            <span style={{ color: darkMode ? "#444" : "#ccc" }}>
+                              ▶
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {history.length > 0 && (
+                  <div
+                    style={{
+                      width: isMobile ? "100%" : "300px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ fontSize: "0.7rem", color: theme.muted }}>
+                      == Export ==
+                    </div>
+                    <button
+                      onClick={() => handleCopy("simple")}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px",
+                        background: theme.itemBg,
+                        color: theme.text,
+                        border: `1px solid ${theme.border}`,
+                        cursor: "pointer",
+                        fontSize: "0.7rem",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      <div style={{ color: theme.muted, marginBottom: "4px" }}>
+                        [ COPY_SIMPLE ] {copyFeedback === "simple" && "✓"}
+                      </div>
+                      <div
+                        style={{
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {generateBreadcrumb("simple")}
+                      </div>
+                    </button>
+                    {!antiChainMode && (
+                      <button
+                        onClick={() => handleCopy("detailed")}
+                        style={{
+                          textAlign: "left",
+                          padding: "10px",
+                          background: theme.itemBg,
+                          color: theme.text,
+                          border: `1px solid ${theme.border}`,
+                          cursor: "pointer",
+                          fontSize: "0.7rem",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        <div
+                          style={{ color: theme.muted, marginBottom: "4px" }}
+                        >
+                          [ COPY_DETAILED ] {copyFeedback === "detailed" && "✓"}
+                        </div>
+                        <div
+                          style={{
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {generateBreadcrumb("detailed")}
+                        </div>
+                      </button>
+                    )}
+                    {antiChainMode && (
+                      <button
+                        onClick={() => handleCopy("all-safe")}
+                        style={{
+                          textAlign: "left",
+                          padding: "10px",
+                          background: theme.itemBg,
+                          color: theme.text,
+                          border: `1px solid ${theme.border}`,
+                          cursor: "pointer",
+                          fontSize: "0.7rem",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        <div
+                          style={{ color: theme.muted, marginBottom: "4px" }}
+                        >
+                          [ COPY_ALL_SAFE_FOLLOWUPS ]{" "}
+                          {copyFeedback === "all-safe" && "✓"}
+                        </div>
+                        <div style={{ fontSize: "0.6rem" }}>
+                          Generates multiline list of all ∅ options
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Branch Rendering Block */}
+            <section>
               <div
                 style={{
                   fontSize: "0.7rem",
                   color: theme.muted,
-                  marginBottom: "10px",
+                  marginBottom: "1.5rem",
                 }}
               >
-                == Active Chain ==
+                =={" "}
+                {antiChainMode
+                  ? "SAFETY BRANCHES (ZERO LINK)"
+                  : "BRANCH SKILLS"}{" "}
+                ==
               </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
-                {history.length === 0 && (
-                  <div style={{ color: theme.muted }}>- idle -</div>
-                )}
-                {history.map((step, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      flexDirection: isMobile ? "column" : "row",
-                      alignItems: isMobile ? "flex-start" : "center",
-                      gap: isMobile ? "6px" : "0px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: isMobile ? "100%" : "240px",
-                        padding: "8px",
-                        border: `1px solid ${darkMode ? "#444" : "#ddd"}`,
-                        background: theme.itemBg,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        boxSizing: "border-box",
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontSize: "0.6rem", color: theme.muted }}>
-                          {step.weaponType}
-                        </div>
-                        <div style={{ fontWeight: "bold" }}>{step.name}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        <button
-                          onClick={() => moveStep(i, -1)}
-                          disabled={i === 0}
-                          style={{
-                            background: "transparent",
-                            color: theme.text,
-                            border: "none",
-                            cursor: i === 0 ? "default" : "pointer",
-                            opacity: i === 0 ? 0.2 : 1,
-                          }}
-                        >
-                          ▲
-                        </button>
-                        <button
-                          onClick={() => moveStep(i, 1)}
-                          disabled={i === history.length - 1}
-                          style={{
-                            background: "transparent",
-                            color: theme.text,
-                            border: "none",
-                            cursor:
-                              i === history.length - 1 ? "default" : "pointer",
-                            opacity: i === history.length - 1 ? 0.2 : 1,
-                          }}
-                        >
-                          ▼
-                        </button>
-                        <button
-                          onClick={() => removeStep(i)}
-                          style={{
-                            background: "transparent",
-                            color: theme.danger,
-                            border: "none",
-                            cursor: "pointer",
-                            marginLeft: "4px",
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                    {i < history.length - 1 && (
+              {!isChainClosed ? (
+                Object.entries(groupedNextSteps).map(([element, skills]) => {
+                  const isSectionOpen =
+                    !isMobile || !!expandedSections[element];
+
+                  return (
+                    <div key={element} style={{ marginBottom: "1.5rem" }}>
                       <div
+                        onClick={() => isMobile && toggleSection(element)}
                         style={{
-                          padding: isMobile ? "0 8px" : "0 20px",
+                          marginBottom: "12px",
+                          cursor: isMobile ? "pointer" : "default",
                           display: "flex",
+                          justifyContent: "space-between",
                           alignItems: "center",
-                          gap: "10px",
+                          background: isMobile ? theme.cardBg : "transparent",
+                          padding: isMobile ? "10px" : "0",
+                          border: isMobile
+                            ? `1px solid ${theme.border}`
+                            : "none",
                         }}
                       >
-                        <span style={{ color: darkMode ? "#444" : "#ccc" }}>
-                          ▶
-                        </span>
-                        {antiChainMode ? (
-                          <span
-                            style={{ fontSize: "1.2rem", color: theme.muted }}
-                          >
-                            ∅
-                          </span>
-                        ) : (
-                          <span
-                            style={getStyleForElement(history[i + 1].scResult)}
-                          >
-                            {history[i + 1].scResult?.toUpperCase()}{" "}
-                            {history[i + 1].isLevel4 ? "LV4" : ""}
-                          </span>
-                        )}
-                        <span style={{ color: darkMode ? "#444" : "#ccc" }}>
-                          ▶
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {history.length > 0 && (
-              <div
-                style={{
-                  width: isMobile ? "100%" : "300px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                }}
-              >
-                <div style={{ fontSize: "0.7rem", color: theme.muted }}>
-                  == Export ==
-                </div>
-                <button
-                  onClick={() => handleCopy("simple")}
-                  style={{
-                    textAlign: "left",
-                    padding: "10px",
-                    background: theme.itemBg,
-                    color: theme.text,
-                    border: `1px solid ${theme.border}`,
-                    cursor: "pointer",
-                    fontSize: "0.7rem",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  <div style={{ color: theme.muted, marginBottom: "4px" }}>
-                    [ COPY_SIMPLE ] {copyFeedback === "simple" && "✓"}
-                  </div>
-                  <div
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {generateBreadcrumb("simple")}
-                  </div>
-                </button>
-                {!antiChainMode && (
-                  <button
-                    onClick={() => handleCopy("detailed")}
-                    style={{
-                      textAlign: "left",
-                      padding: "10px",
-                      background: theme.itemBg,
-                      color: theme.text,
-                      border: `1px solid ${theme.border}`,
-                      cursor: "pointer",
-                      fontSize: "0.7rem",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    <div style={{ color: theme.muted, marginBottom: "4px" }}>
-                      [ COPY_DETAILED ] {copyFeedback === "detailed" && "✓"}
-                    </div>
-                    <div
-                      style={{
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {generateBreadcrumb("detailed")}
-                    </div>
-                  </button>
-                )}
-                {antiChainMode && (
-                  <button
-                    onClick={() => handleCopy("all-safe")}
-                    style={{
-                      textAlign: "left",
-                      padding: "10px",
-                      background: theme.itemBg,
-                      color: theme.text,
-                      border: `1px solid ${theme.border}`,
-                      cursor: "pointer",
-                      fontSize: "0.7rem",
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    <div style={{ color: theme.muted, marginBottom: "4px" }}>
-                      [ COPY_ALL_SAFE_FOLLOWUPS ]{" "}
-                      {copyFeedback === "all-safe" && "✓"}
-                    </div>
-                    <div style={{ fontSize: "0.6rem" }}>
-                      Generates multiline list of all ∅ options
-                    </div>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Branch Rendering (Accordions on Mobile) */}
-        <section>
-          <div
-            style={{
-              fontSize: "0.7rem",
-              color: theme.muted,
-              marginBottom: "1.5rem",
-            }}
-          >
-            == {antiChainMode ? "SAFETY BRANCHES (ZERO LINK)" : "BRANCH SKILLS"}{" "}
-            ==
-          </div>
-          {!isChainClosed ? (
-            Object.entries(groupedNextSteps).map(([element, skills]) => {
-              const isSectionOpen = !isMobile || !!expandedSections[element];
-
-              return (
-                <div key={element} style={{ marginBottom: "1.5rem" }}>
-                  <div
-                    onClick={() => isMobile && toggleSection(element)}
-                    style={{
-                      marginBottom: "12px",
-                      cursor: isMobile ? "pointer" : "default",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      background: isMobile ? theme.cardBg : "transparent",
-                      padding: isMobile ? "10px" : "0",
-                      border: isMobile ? `1px solid ${theme.border}` : "none",
-                    }}
-                  >
-                    <div>
-                      {antiChainMode ? (
-                        <span
-                          style={{
-                            border: `1px solid ${theme.muted}`,
-                            padding: "4px 10px",
-                            color: theme.muted,
-                          }}
-                        >
-                          SAFE_OPTIONS
-                        </span>
-                      ) : element !== "START_NODES" ? (
-                        <span
-                          style={getStyleForElement(
-                            element,
-                            !skills.some((s) => s.isPriority),
-                          )}
-                        >
-                          {element.toUpperCase()}
-                        </span>
-                      ) : (
-                        <span style={{ color: theme.muted }}>
-                          STARTING WEAPON SKILLS ({activeWeaponType.toUpperCase()})
-                        </span>
-                      )}
-                    </div>
-                    {isMobile && (
-                      <span style={{ fontSize: "0.8rem", color: theme.muted }}>
-                        {isSectionOpen ? "[ - COLLAPSE ]" : `[ + EXPAND (${skills.length}) ]`}
-                      </span>
-                    )}
-                  </div>
-
-                  {isSectionOpen && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexWrap: "wrap",
-                        gap: "12px",
-                      }}
-                    >
-                      {skills.map((ws, idx) => {
-                        const hasPartyHeader = multiPartyMode && history.length > 0;
-                        return (
-                          <button
-                            key={`${ws.weaponType}-${ws.name}-${idx}`}
-                            onClick={() =>
-                              ws.isPriority && addToChain(ws.name, ws.weaponType)
-                            }
-                            style={{
-                              position: "relative",
-                              padding: "12px",
-                              paddingTop: hasPartyHeader ? "24px" : "12px",
-                              background: theme.itemBg,
-                              color: theme.text,
-                              border: ws.isPriority
-                                ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
-                                : `1px solid ${theme.border}`,
-                              cursor: ws.isPriority ? "pointer" : "not-allowed",
-                              fontFamily: "monospace",
-                              textAlign: "left",
-                              width: isMobile ? "100%" : "165px",
-                              boxSizing: "border-box",
-                              boxShadow: ws.isPriority
-                                ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
-                                : "none",
-                              opacity: ws.isPriority ? 1 : 0.4,
-                            }}
-                          >
-                            {hasPartyHeader && (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  top: "6px",
-                                  right: "8px",
-                                  fontSize: "0.75rem",
-                                  color: ws.isPriority
-                                    ? antiChainMode
-                                      ? theme.danger
-                                      : "#b388ff"
-                                    : theme.muted,
-                                  fontWeight: "bold",
-                                  textTransform: "uppercase",
-                                }}
-                              >
-                                [{ws.weaponType}]
-                              </div>
-                            )}
-                            <strong>{ws.name}</strong>
-                            <div
+                        <div>
+                          {antiChainMode ? (
+                            <span
                               style={{
-                                fontSize: "0.6rem",
+                                border: `1px solid ${theme.muted}`,
+                                padding: "4px 10px",
                                 color: theme.muted,
-                                marginTop: "4px",
                               }}
                             >
-                              {getWSProperties(ws.name, ws.weaponType).join(" • ")}
-                            </div>
-                          </button>
-                        );
-                      })}
+                              SAFE_OPTIONS
+                            </span>
+                          ) : element !== "START_NODES" ? (
+                            <span
+                              style={getStyleForElement(
+                                element,
+                                !skills.some((s) => s.isPriority),
+                              )}
+                            >
+                              {element.toUpperCase()}
+                            </span>
+                          ) : (
+                            <span style={{ color: theme.muted }}>
+                              STARTING WEAPON SKILLS (
+                              {activeWeaponType.toUpperCase()})
+                            </span>
+                          )}
+                        </div>
+                        {isMobile && (
+                          <span
+                            style={{ fontSize: "0.8rem", color: theme.muted }}
+                          >
+                            {isSectionOpen
+                              ? "[ - COLLAPSE ]"
+                              : `[ + EXPAND (${skills.length}) ]`}
+                          </span>
+                        )}
+                      </div>
+
+                      {isSectionOpen && (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "12px",
+                          }}
+                        >
+                          {skills.map((ws, idx) => {
+                            const hasPartyHeader =
+                              multiPartyMode && history.length > 0;
+                            return (
+                              <button
+                                key={`${ws.weaponType}-${ws.name}-${idx}`}
+                                onClick={() =>
+                                  ws.isPriority &&
+                                  addToChain(ws.name, ws.weaponType)
+                                }
+                                style={{
+                                  position: "relative",
+                                  padding: "12px",
+                                  paddingTop: hasPartyHeader ? "24px" : "12px",
+                                  background: theme.itemBg,
+                                  color: theme.text,
+                                  border: ws.isPriority
+                                    ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
+                                    : `1px solid ${theme.border}`,
+                                  cursor: ws.isPriority
+                                    ? "pointer"
+                                    : "not-allowed",
+                                  fontFamily: "monospace",
+                                  textAlign: "left",
+                                  width: isMobile ? "100%" : "165px",
+                                  boxSizing: "border-box",
+                                  boxShadow: ws.isPriority
+                                    ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
+                                    : "none",
+                                  opacity: ws.isPriority ? 1 : 0.4,
+                                }}
+                              >
+                                {hasPartyHeader && (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      top: "6px",
+                                      right: "8px",
+                                      fontSize: "0.75rem",
+                                      color: ws.isPriority
+                                        ? antiChainMode
+                                          ? theme.danger
+                                          : "#b388ff"
+                                        : theme.muted,
+                                      fontWeight: "bold",
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
+                                    [{ws.weaponType}]
+                                  </div>
+                                )}
+                                <strong>{ws.name}</strong>
+                                <div
+                                  style={{
+                                    fontSize: "0.6rem",
+                                    color: theme.muted,
+                                    marginTop: "4px",
+                                  }}
+                                >
+                                  {getWSProperties(ws.name, ws.weaponType).join(
+                                    " • ",
+                                  )}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  );
+                })
+              ) : (
+                <div
+                  style={{
+                    padding: "40px",
+                    border: "1px solid #e74c3c",
+                    color: "#e74c3c",
+                    textAlign: "center",
+                    background: theme.itemBg,
+                  }}
+                >
+                  [ CHAIN_TERMINATED ]
                 </div>
-              );
-            })
-          ) : (
+              )}
+            </section>
+          </div>
+
+          {/* Right Desktop Flyout Block */}
+          {!isMobile && guideOpen && (
             <div
               style={{
-                padding: "40px",
-                border: "1px solid #e74c3c",
-                color: "#e74c3c",
-                textAlign: "center",
-                background: theme.itemBg,
+                width: "360px",
+                flexShrink: 0,
+                position: "sticky",
+                top: "2rem",
               }}
             >
-              [ CHAIN_TERMINATED ]
+              {renderBlueprintGuide()}
             </div>
           )}
-        </section>
+        </div>
       </div>
       <footer
         style={{
