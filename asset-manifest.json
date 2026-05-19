@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/gnovischains/static/css/main.e6c13ad2.css",
-    "main.js": "/gnovischains/static/js/main.a6ad40a1.js",
+    "main.js": "/gnovischains/static/js/main.b5cc0b2a.js",
     "index.html": "/gnovischains/index.html",
     "main.e6c13ad2.css.map": "/gnovischains/static/css/main.e6c13ad2.css.map",
-    "main.a6ad40a1.js.map": "/gnovischains/static/js/main.a6ad40a1.js.map"
+    "main.b5cc0b2a.js.map": "/gnovischains/static/js/main.b5cc0b2a.js.map"
   },
   "entrypoints": [
     "static/css/main.e6c13ad2.css",
-    "static/js/main.a6ad40a1.js"
+    "static/js/main.b5cc0b2a.js"
   ]
 }
