@@ -41,7 +41,90 @@ const ELEMENT_MAP = {
   },
 };
 
+// --- PURE GRAPH UTILITIES ---
+const getWSProperties = (wsName, weaponCategory) =>
+  weaponskills[weaponCategory]?.[wsName] || [];
+
+const getGamePriorityResult = (starterProps, closerName, closerWeaponType) => {
+  const closerProps = getWSProperties(closerName, closerWeaponType);
+  if (!starterProps || !closerProps) return null;
+  for (let sProp of starterProps) {
+    for (let cProp of closerProps) {
+      if (skillchains[sProp]?.[cProp]) return skillchains[sProp][cProp];
+    }
+  }
+  return null;
+};
+
+const recalculateChain = (wsList, isAnti) => {
+  const newHistory = [];
+  for (let i = 0; i < wsList.length; i++) {
+    const currentWS = wsList[i];
+    if (i === 0) {
+      newHistory.push({ ...currentWS, scResult: null, isLevel4: false });
+      continue;
+    }
+    const lastStep = newHistory[i - 1];
+    const starterProps = lastStep.scResult
+      ? [lastStep.scResult]
+      : getWSProperties(lastStep.name, lastStep.weaponType);
+    const actualSC = getGamePriorityResult(
+      starterProps,
+      currentWS.name,
+      currentWS.weaponType,
+    );
+
+    if (isAnti) {
+      if (actualSC !== null) break;
+    } else {
+      if (actualSC === null || lastStep.isLevel4) break;
+    }
+
+    const isLevel4 =
+      !isAnti &&
+      lastStep.scResult === actualSC &&
+      ["Light", "Darkness"].includes(actualSC);
+    newHistory.push({ ...currentWS, scResult: actualSC, isLevel4 });
+  }
+  return newHistory;
+};
+
+const findProceduralBlueprint = (weaponsPool, target) => {
+  const options = [];
+  weaponsPool.forEach((wType) => {
+    Object.keys(weaponskills[wType] || {}).forEach((wsName) => {
+      options.push({ name: wsName, weaponType: wType });
+    });
+  });
+
+  const shuffled = [...options].sort(() => Math.random() - 0.5);
+
+  for (let ws1 of shuffled) {
+    for (let ws2 of shuffled) {
+      const step2 = recalculateChain([ws1, ws2], false);
+      if (step2.length < 2) continue;
+
+      for (let ws3 of shuffled) {
+        const step3 = recalculateChain([ws1, ws2, ws3], false);
+        if (step3.length < 3) continue;
+
+        for (let ws4 of shuffled) {
+          const step4 = recalculateChain([ws1, ws2, ws3, ws4], false);
+          if (step4.length === 4) {
+            const finalChainLink = step4[3];
+            if (finalChainLink.scResult === target) {
+              return step4;
+            }
+          }
+        }
+      }
+    }
+  }
+  return null;
+};
+
 function App() {
+  const [viewMode, setViewMode] = useState("calculator");
   const [history, setHistory] = useState([]);
   const [partySlots, setPartySlots] = useState([
     "Hand-to-Hand",
@@ -56,11 +139,17 @@ function App() {
   const [multiPartyMode, setMultiPartyMode] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
 
-  // Responsive & Interactive Guide States
+  // Responsive Layout Toggles
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({});
+
+  // Challenge Simulator Engine States
+  const [challengeState, setChallengeState] = useState("IDLE"); // IDLE, APP_THINKING, USER_COOLDOWN, USER_INPUT, SUCCESS, FAILED, IMPOSSIBLE
+  const [challengeTimer, setChallengeTimer] = useState(0);
+  const [challengeTarget, setChallengeTarget] = useState("Light");
+  const [challengeBlueprint, setChallengeBlueprint] = useState(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -111,80 +200,122 @@ function App() {
         };
   };
 
-  const getWSProperties = (wsName, weaponCategory) =>
-    weaponskills[weaponCategory]?.[wsName] || [];
+  const startChallengeRound = React.useCallback(() => {
+    const activePool = partySlots;
+    const blueprint = findProceduralBlueprint(activePool, challengeTarget);
 
-  const getGamePriorityResult = (
-    starterProps,
-    closerName,
-    closerWeaponType,
-  ) => {
-    const closerProps = getWSProperties(closerName, closerWeaponType);
-    if (!starterProps || !closerProps) return null;
-    for (let sProp of starterProps) {
-      for (let cProp of closerProps) {
-        if (skillchains[sProp]?.[cProp]) return skillchains[sProp][cProp];
-      }
+    setHistory([]);
+    if (!blueprint) {
+      setChallengeState("IMPOSSIBLE");
+      setChallengeTimer(8);
+    } else {
+      setChallengeBlueprint(blueprint);
+      setChallengeState("APP_THINKING");
+      setChallengeTimer(2);
     }
-    return null;
-  };
+  }, [partySlots, challengeTarget]);
 
-  const recalculateChain = (wsList, isAnti) => {
-    const newHistory = [];
-    for (let i = 0; i < wsList.length; i++) {
-      const currentWS = wsList[i];
-      if (i === 0) {
-        newHistory.push({ ...currentWS, scResult: null, isLevel4: false });
-        continue;
+  // Unified State Machine Loop Controller
+  useEffect(() => {
+    if (challengeState === "IDLE") return;
+
+    if (challengeTimer <= 0) {
+      if (challengeState === "APP_THINKING") {
+        const nextIdx = history.length;
+        if (nextIdx === 0 || nextIdx === 2) {
+          const appAction = challengeBlueprint[nextIdx];
+          setHistory((prev) => [...prev, appAction]);
+          setChallengeState("USER_COOLDOWN");
+          setChallengeTimer(2);
+        }
+      } else if (challengeState === "USER_COOLDOWN") {
+        setChallengeState("USER_INPUT");
+      } else if (["SUCCESS", "FAILED", "IMPOSSIBLE"].includes(challengeState)) {
+        startChallengeRound();
       }
-      const lastStep = newHistory[i - 1];
-      const starterProps = lastStep.scResult
-        ? [lastStep.scResult]
-        : getWSProperties(lastStep.name, lastStep.weaponType);
-      const actualSC = getGamePriorityResult(
-        starterProps,
-        currentWS.name,
-        currentWS.weaponType,
-      );
-
-      if (isAnti) {
-        if (actualSC !== null) break;
-      } else {
-        if (actualSC === null || lastStep.isLevel4) break;
-      }
-
-      const isLevel4 =
-        !isAnti &&
-        lastStep.scResult === actualSC &&
-        ["Light", "Darkness"].includes(actualSC);
-      newHistory.push({ ...currentWS, scResult: actualSC, isLevel4 });
+      return;
     }
-    return newHistory;
-  };
+
+    const interval = setTimeout(() => {
+      setChallengeTimer((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(interval);
+  }, [
+    challengeTimer,
+    challengeState,
+    challengeBlueprint,
+    history.length,
+    startChallengeRound,
+  ]);
 
   const toggleAntiChain = () => {
+    if (challengeState !== "IDLE") return;
     const newMode = !antiChainMode;
     setAntiChainMode(newMode);
     setHistory(recalculateChain(history, newMode));
   };
 
-  const addToChain = (wsName, weaponType) =>
-    setHistory(
-      recalculateChain(
+  const addToChain = (wsName, weaponType) => {
+    if (challengeState === "USER_INPUT") {
+      const currentIdx = history.length; // Will be 1 or 3
+      const simulatedHistory = recalculateChain(
+        [...history, { name: wsName, weaponType }],
+        false,
+      );
+      const userAddedStep = simulatedHistory[simulatedHistory.length - 1];
+
+      // Layer 1: Immediate Victory Evaluation (Hit goal early or on step 3)
+      if (userAddedStep && userAddedStep.scResult === challengeTarget) {
+        setHistory(simulatedHistory);
+        setChallengeState("SUCCESS");
+        setChallengeTimer(6);
+        return;
+      }
+
+      // Layer 2: Continuation Verification for Step 1
+      if (currentIdx === 1) {
+        const blueprintStep = challengeBlueprint?.[currentIdx];
+        if (
+          userAddedStep &&
+          blueprintStep &&
+          userAddedStep.scResult === blueprintStep.scResult
+        ) {
+          setHistory(simulatedHistory);
+          setChallengeState("APP_THINKING");
+          setChallengeTimer(1);
+        } else {
+          setHistory(simulatedHistory);
+          setChallengeState("FAILED");
+          setChallengeTimer(6);
+        }
+      } else {
+        // Step 3 failure path (didn't satisfy Layer 1 check above)
+        setHistory(simulatedHistory);
+        setChallengeState("FAILED");
+        setChallengeTimer(6);
+      }
+    } else {
+      const newHistory = recalculateChain(
         [...history, { name: wsName, weaponType }],
         antiChainMode,
-      ),
-    );
+      );
+      setHistory(newHistory);
+    }
+  };
 
-  const removeStep = (index) =>
+  const removeStep = (index) => {
+    if (challengeState !== "IDLE") return;
     setHistory(
       recalculateChain(
         history.filter((_, i) => i !== index),
         antiChainMode,
       ),
     );
+  };
 
   const moveStep = (index, direction) => {
+    if (challengeState !== "IDLE") return;
     const newHistoryRaw = [...history];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newHistoryRaw.length) return;
@@ -227,6 +358,27 @@ function App() {
   };
 
   const getGroupedNextSteps = () => {
+    // Challenge Mode Option Matrix: Flat pool layout (No Cheat Sheet)
+    if (viewMode === "challenge") {
+      const list = [];
+      partySlots.forEach((wType) => {
+        Object.keys(weaponskills[wType] || {}).forEach((wsName) => {
+          list.push({
+            name: wsName,
+            weaponType: wType,
+            isPriority: true, // Keep active and valid for structural interaction
+          });
+        });
+      });
+      list.sort((a, b) => {
+        if (a.weaponType !== b.weaponType)
+          return a.weaponType.localeCompare(b.weaponType);
+        return a.name.localeCompare(b.name);
+      });
+      return { "SELECT A WEAPONSKILL": list };
+    }
+
+    // Calculator Mode Option Matrices
     if (history.length === 0) {
       return {
         START_NODES: Object.keys(weaponskills[activeWeaponType] || {}).map(
@@ -283,9 +435,8 @@ function App() {
     });
 
     const sortSkills = (a, b) => {
-      if (a.weaponType !== b.weaponType) {
+      if (a.weaponType !== b.weaponType)
         return a.weaponType.localeCompare(b.weaponType);
-      }
       return a.name.localeCompare(b.name);
     };
 
@@ -297,49 +448,67 @@ function App() {
   };
 
   const removeFromParty = (weapon) => {
+    if (challengeState !== "IDLE") return;
     const newParty = partySlots.filter((p) => p !== weapon);
     setPartySlots(newParty);
     if (activeWeaponType === weapon) setActiveWeaponType(newParty[0] || "");
   };
 
+  const handleViewSwitch = (targetMode) => {
+    if (challengeState !== "IDLE") {
+      setChallengeState("IDLE");
+    }
+    setHistory([]);
+    setAntiChainMode(false);
+    setViewMode(targetMode);
+  };
+
   const groupedNextSteps = getGroupedNextSteps();
   const isChainClosed =
-    history.length > 0 && history[history.length - 1].isLevel4;
+    viewMode === "calculator" &&
+    history.length > 0 &&
+    history[history.length - 1].isLevel4;
+  const canSelectSkills =
+    challengeState === "IDLE" || challengeState === "USER_INPUT";
 
   const renderActionButtons = () => (
     <>
-      <button
-        onClick={() => setMultiPartyMode(!multiPartyMode)}
-        style={{
-          cursor: "pointer",
-          background: multiPartyMode ? theme.accent : theme.itemBg,
-          color: multiPartyMode ? theme.bg : theme.text,
-          border: `1px solid ${theme.border}`,
-          padding: "10px 14px",
-          fontSize: "0.9rem",
-          fontWeight: "bold",
-          fontFamily: "monospace",
-          width: isMobile ? "100%" : "auto",
-        }}
-      >
-        {multiPartyMode ? "👥 PARTY_WEAPONS" : "👤 SINGLE_WEAPON"}
-      </button>
-      <button
-        onClick={toggleAntiChain}
-        style={{
-          cursor: "pointer",
-          background: antiChainMode ? theme.danger : theme.itemBg,
-          color: antiChainMode ? "#fff" : theme.text,
-          border: `1px solid ${antiChainMode ? theme.danger : theme.border}`,
-          padding: "10px 14px",
-          fontSize: "0.9rem",
-          fontWeight: "bold",
-          fontFamily: "monospace",
-          width: isMobile ? "100%" : "auto",
-        }}
-      >
-        {antiChainMode ? "Ø ANTI_MODE" : "Ø ANTI_MODE"}
-      </button>
+      {viewMode === "calculator" && (
+        <button
+          onClick={() => setMultiPartyMode(!multiPartyMode)}
+          style={{
+            cursor: "pointer",
+            background: multiPartyMode ? theme.accent : theme.itemBg,
+            color: multiPartyMode ? theme.bg : theme.text,
+            border: `1px solid ${theme.border}`,
+            padding: "10px 14px",
+            fontSize: "0.9rem",
+            fontWeight: "bold",
+            fontFamily: "monospace",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          {multiPartyMode ? "👥 PARTY_WEAPONS" : "👤 SINGLE_WEAPON"}
+        </button>
+      )}
+      {viewMode === "calculator" && (
+        <button
+          onClick={toggleAntiChain}
+          style={{
+            cursor: "pointer",
+            background: antiChainMode ? theme.danger : theme.itemBg,
+            color: antiChainMode ? "#fff" : theme.text,
+            border: `1px solid ${antiChainMode ? theme.danger : theme.border}`,
+            padding: "10px 14px",
+            fontSize: "0.9rem",
+            fontWeight: "bold",
+            fontFamily: "monospace",
+            width: isMobile ? "100%" : "auto",
+          }}
+        >
+          Ø ANTI_MODE
+        </button>
+      )}
       <button
         onClick={() => setGuideOpen(!guideOpen)}
         style={{
@@ -402,8 +571,7 @@ function App() {
 
       <p style={{ margin: "0 0 12px 0" }}>
         Skillchains occur when specific Weaponskills successfully strike
-        sequentially within a <strong>3-10 seconds window</strong>, with
-        execution order being critical.
+        sequentially within a <strong>3-10 seconds window</strong>.
       </p>
 
       <div
@@ -441,14 +609,6 @@ function App() {
          ▼ 
   RESULT: [Scission]`}
       </pre>
-      <p style={{ margin: "0 0 12px 0" }}>
-        <strong>Reciprocal</strong> chains can reverse execution order to create
-        the chains elemental ending properties. <br />
-        <strong>Non-reciprocal</strong> chains such as{" "}
-        <span style={getStyleForElement("Liquefaction")}>Liquefaction</span>{" "}
-        then <span style={getStyleForElement("Detonation")}>Detonation</span>{" "}
-        creates ∅ Skillchain.
-      </p>
 
       <div
         style={{
@@ -483,14 +643,6 @@ function App() {
           <span style={getStyleForElement("Fusion")}>FUSION</span>
         </div>
         <div>
-          <span>LV2 (Hybrid - 2 Step): </span>
-          <span style={getStyleForElement("Fragmentation")}>
-            FRAGMENTATION
-          </span>{" "}
-          + <span style={getStyleForElement("Distortion")}>DISTORTION</span> ={" "}
-          <span style={getStyleForElement("Distortion")}>DISTORTION</span>
-        </div>
-        <div>
           <span>LV3 (Ultimate): </span>
           <span style={getStyleForElement("Fusion")}>Fusion</span> +{" "}
           <span style={getStyleForElement("Fragmentation")}>Fragmentation</span>{" "}
@@ -506,30 +658,12 @@ function App() {
           fontSize: "0.9rem",
         }}
       >
-        [ 3. TIER TERMINATION ]
+        [ 3. TERMINATION ]
       </div>
-      <p style={{ margin: "0 0 8px 0" }}>
-        Reaching Level 3 Skillchains ends the progression of elemental
-        properties: <span style={getStyleForElement("Light")}>Light</span> or{" "}
-        <span style={getStyleForElement("Darkness")}>Darkness</span>.
-      </p>
-      <div
-        style={{
-          fontWeight: "bold",
-          marginBottom: "6px",
-          color: theme.muted,
-          fontSize: "0.9rem",
-        }}
-      >
-        [ 3.5. TIER 4 & ULTIMATE WEAPON INTERACTIONS ]
-      </div>
-      <p style={{ margin: "0 0 0 0" }}>
-        Performing a follow up Level 3 Weaponskill with an Ultimate Weapon of
-        the same Level 3 element creates a final Level 4{" "}
+      <p style={{ margin: "0" }}>
+        Reaching Level 3 Skillchains ends the standard mechanics progression:{" "}
         <span style={getStyleForElement("Light")}>Light</span> or{" "}
-        <span style={getStyleForElement("Darkness")}>Darkness</span> (Aeonic
-        with AM : <span style={getStyleForElement("Light")}>Radiance</span> or{" "}
-        <span style={getStyleForElement("Darkness")}>Umbra</span>)
+        <span style={getStyleForElement("Darkness")}>Darkness</span>.
       </p>
     </div>
   );
@@ -552,7 +686,7 @@ function App() {
           position: "relative",
         }}
       >
-        {/* Navigation Head Layout */}
+        {/* Navigation Header Layout */}
         <div
           style={{
             display: "flex",
@@ -563,8 +697,45 @@ function App() {
             marginBottom: "1.8rem",
           }}
         >
-          <h1 style={{ fontSize: isMobile ? "1.6rem" : "2.4rem", margin: 0 }}>
-            {antiChainMode ? "Gnovi's Anti-Chains" : "Gnovi's Chains"}
+          {/* Title and Easter Egg Toggle */}
+          <h1
+            style={{
+              fontSize: isMobile ? "1.4rem" : "2.2rem",
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <span>
+              {viewMode === "challenge"
+                ? "Gnovi's Simulator"
+                : antiChainMode
+                  ? "Gnovi's Anti-Chains"
+                  : "Gnovi's Chains"}
+            </span>
+            <span
+              onClick={() =>
+                handleViewSwitch(
+                  viewMode === "calculator" ? "challenge" : "calculator",
+                )
+              }
+              style={{
+                cursor: "pointer",
+                opacity: 0.5,
+                transition: "opacity 0.2s",
+                userSelect: "none",
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.opacity = 1)}
+              onMouseOut={(e) => (e.currentTarget.style.opacity = 0.5)}
+              title={
+                viewMode === "calculator"
+                  ? "Access Simulator"
+                  : "Return to Calculator"
+              }
+            >
+              {viewMode === "calculator" ? "💻" : "🎮"}
+            </span>
           </h1>
 
           {isMobile ? (
@@ -615,116 +786,266 @@ function App() {
         <div style={{ display: "flex", gap: "28px", alignItems: "flex-start" }}>
           {/* Left Block Workspace Container */}
           <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
-            {/* Party Slot Configuration Bar */}
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "8px",
-                marginBottom: "18px",
-              }}
-            >
-              {partySlots.map((weapon) => (
-                <div
-                  key={weapon}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    border: `1px solid ${theme.border}`,
-                    background:
-                      activeWeaponType === weapon
-                        ? antiChainMode
-                          ? theme.danger
-                          : theme.accent
-                        : theme.itemBg,
-                  }}
-                >
-                  <button
-                    onClick={() => setActiveWeaponType(weapon)}
-                    style={{
-                      padding: isMobile ? "8px 12px" : "10px 18px",
-                      fontSize: isMobile ? "0.85rem" : "1rem",
-                      border: "none",
-                      cursor: "pointer",
-                      fontFamily: "monospace",
-                      background: "transparent",
-                      color:
-                        activeWeaponType === weapon
-                          ? antiChainMode
-                            ? "#fff"
-                            : theme.bg
-                          : theme.text,
-                    }}
-                  >
-                    {weapon.toUpperCase()}
-                  </button>
-                  <button
-                    onClick={() => removeFromParty(weapon)}
-                    style={{
-                      padding: "0 8px",
-                      border: "none",
-                      background: "transparent",
-                      color: theme.danger,
-                      cursor: "pointer",
-                      fontSize: isMobile ? "1rem" : "1.15rem",
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              <select
-                onChange={(e) => {
-                  if (e.target.value && !partySlots.includes(e.target.value)) {
-                    setPartySlots([...partySlots, e.target.value]);
-                    setActiveWeaponType(e.target.value);
-                  }
-                }}
-                value=""
+            {/* Interactive Challenge Setup Controller - Exclusive to Challenge View */}
+            {viewMode === "challenge" && (
+              <div
                 style={{
-                  padding: isMobile ? "8px" : "10px",
-                  fontSize: isMobile ? "0.85rem" : "1rem",
-                  fontFamily: "monospace",
-                  border: `1px dashed ${theme.border}`,
-                  background: theme.itemBg,
-                  color: theme.text,
+                  background: theme.cardBg,
+                  border: `1px solid ${challengeState !== "IDLE" ? "#b388ff" : theme.border}`,
+                  padding: "16px",
+                  marginBottom: "18px",
                 }}
               >
-                <option value="" disabled>
-                  + ADD_WEAPON
-                </option>
-                {Object.keys(weaponskills)
-                  .filter((w) => !partySlots.includes(w))
-                  .map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
-              </select>
-            </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "12px",
+                  }}
+                >
+                  <div>
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        color:
+                          challengeState !== "IDLE" ? "#b388ff" : theme.text,
+                      }}
+                    >
+                      🎮 PROCEDURAL COMBAT SIMULATOR
+                    </span>
+                    {challengeState !== "IDLE" && (
+                      <span style={{ marginLeft: "10px", color: theme.muted }}>
+                        [ GOAL:{" "}
+                        <strong
+                          style={{
+                            color:
+                              ELEMENT_COLORS[challengeTarget] || theme.text,
+                          }}
+                        >
+                          {challengeTarget.toUpperCase()}
+                        </strong>{" "}
+                        ]
+                      </span>
+                    )}
+                  </div>
 
-            <button
-              onClick={() => setHistory([])}
-              style={{
-                cursor: "pointer",
-                border: `1px solid ${theme.border}`,
-                background: theme.itemBg,
-                color: theme.text,
-                padding: "6px 12px",
-                fontSize: "0.85rem",
-                marginBottom: "2.2rem",
-              }}
-            >
-              CLEAR ACTIVE CHAIN
-            </button>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "10px",
+                      alignItems: "center",
+                    }}
+                  >
+                    {challengeState === "IDLE" && (
+                      <>
+                        <select
+                          value={challengeTarget}
+                          onChange={(e) => setChallengeTarget(e.target.value)}
+                          style={{
+                            padding: "6px",
+                            fontFamily: "monospace",
+                            background: theme.itemBg,
+                            color: theme.text,
+                            border: `1px solid ${theme.border}`,
+                          }}
+                        >
+                          <option value="Light">LIGHT (LV3)</option>
+                          <option value="Darkness">DARKNESS (LV3)</option>
+                        </select>
+                        <button
+                          onClick={startChallengeRound}
+                          style={{
+                            cursor: "pointer",
+                            background: theme.accent,
+                            color: theme.bg,
+                            border: "none",
+                            padding: "6px 12px",
+                            fontWeight: "bold",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          [ START ]
+                        </button>
+                      </>
+                    )}
 
-            {/* Core Processing Panel */}
+                    {challengeState !== "IDLE" && (
+                      <button
+                        onClick={() => {
+                          setChallengeState("IDLE");
+                          setHistory([]);
+                        }}
+                        style={{
+                          cursor: "pointer",
+                          background: theme.danger,
+                          color: "#fff",
+                          border: "none",
+                          padding: "6px 12px",
+                          fontWeight: "bold",
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        [ RESET ]
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {challengeState !== "IDLE" && (
+                  <div
+                    style={{
+                      marginTop: "12px",
+                      padding: "10px",
+                      background: theme.bg,
+                      borderLeft: `3px solid ${
+                        challengeState === "SUCCESS"
+                          ? "#2ecc71"
+                          : challengeState === "FAILED"
+                            ? theme.danger
+                            : "#b388ff"
+                      }`,
+                    }}
+                  >
+                    <div style={{ fontWeight: "bold", fontSize: "0.9rem" }}>
+                      {challengeState === "APP_THINKING" &&
+                        "⏳ APP THINKING... SIMULATING COMBAT POSITION..."}
+                      {challengeState === "USER_COOLDOWN" &&
+                        `⏳ STANDBY... NEXT POSITION UNLOCKING IN ${challengeTimer}s`}
+                      {challengeState === "USER_INPUT" &&
+                        "⚔️ YOUR TURN: Deploy ANY weapon skill that safely furthers the flow!"}
+                      {challengeState === "SUCCESS" &&
+                        `🎉 CLEAR! Target alignment achieved perfectly. Reloading pool in ${challengeTimer}s`}
+                      {challengeState === "FAILED" &&
+                        `❌ CHAIN BROKEN! Alignment property failed. Reloading in ${challengeTimer}s`}
+                      {challengeState === "IMPOSSIBLE" &&
+                        `⚠️ IMPOSSIBLE TARGET! Pool lacks pathing for selection. Regenerating in ${challengeTimer}s`}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Weapon Workspace Controller - Exclusive to Calculator View */}
+            {viewMode === "calculator" && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "8px",
+                  marginBottom: "18px",
+                }}
+              >
+                {partySlots.map((weapon) => (
+                  <div
+                    key={weapon}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      border: `1px solid ${theme.border}`,
+                      background:
+                        activeWeaponType === weapon
+                          ? antiChainMode
+                            ? theme.danger
+                            : theme.accent
+                          : theme.itemBg,
+                    }}
+                  >
+                    <button
+                      onClick={() => setActiveWeaponType(weapon)}
+                      style={{
+                        padding: isMobile ? "8px 12px" : "10px 18px",
+                        fontSize: isMobile ? "0.85rem" : "1rem",
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: "monospace",
+                        background: "transparent",
+                        color:
+                          activeWeaponType === weapon
+                            ? antiChainMode
+                              ? "#fff"
+                              : theme.bg
+                            : theme.text,
+                      }}
+                    >
+                      {weapon.toUpperCase()}
+                    </button>
+                    <button
+                      onClick={() => removeFromParty(weapon)}
+                      style={{
+                        padding: "0 8px",
+                        border: "none",
+                        background: "transparent",
+                        color: theme.danger,
+                        cursor: "pointer",
+                        fontSize: isMobile ? "1rem" : "1.15rem",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <select
+                  onChange={(e) => {
+                    if (
+                      e.target.value &&
+                      !partySlots.includes(e.target.value)
+                    ) {
+                      setPartySlots([...partySlots, e.target.value]);
+                      setActiveWeaponType(e.target.value);
+                    }
+                  }}
+                  value=""
+                  style={{
+                    padding: isMobile ? "8px" : "10px",
+                    fontSize: isMobile ? "0.85rem" : "1rem",
+                    fontFamily: "monospace",
+                    border: `1px dashed ${theme.border}`,
+                    background: theme.itemBg,
+                    color: theme.text,
+                    cursor: "pointer",
+                  }}
+                >
+                  <option value="" disabled>
+                    + ADD_WEAPON
+                  </option>
+                  {Object.keys(weaponskills)
+                    .filter((w) => !partySlots.includes(w))
+                    .map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {viewMode === "calculator" && (
+              <button
+                onClick={() => setHistory([])}
+                style={{
+                  cursor: "pointer",
+                  border: `1px solid ${theme.border}`,
+                  background: theme.itemBg,
+                  color: theme.text,
+                  padding: "6px 12px",
+                  fontSize: "0.85rem",
+                  marginBottom: "2.2rem",
+                }}
+              >
+                CLEAR ACTIVE CHAIN
+              </button>
+            )}
+
+            {/* Core Display History Panel */}
             <section
               style={{
                 marginBottom: "3.5rem",
                 background: theme.cardBg,
                 padding: "18px",
                 border: `1px solid ${darkMode ? "#333" : "#eee"}`,
+                marginTop: viewMode === "challenge" ? "12px" : "0",
               }}
             >
               <div
@@ -744,7 +1065,7 @@ function App() {
                       marginBottom: "12px",
                     }}
                   >
-                    == Active Chain ==
+                    == Active Chain Track ==
                   </div>
                   <div
                     style={{
@@ -755,7 +1076,9 @@ function App() {
                   >
                     {history.length === 0 && (
                       <div style={{ color: theme.muted, fontSize: "0.95rem" }}>
-                        - idle -
+                        {viewMode === "challenge"
+                          ? "- awaiting simulator ignition -"
+                          : "- idle -"}
                       </div>
                     )}
                     {history.map((step, i) => (
@@ -795,55 +1118,57 @@ function App() {
                               {step.name}
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: "6px" }}>
-                            <button
-                              onClick={() => moveStep(i, -1)}
-                              disabled={i === 0}
-                              style={{
-                                background: "transparent",
-                                color: theme.text,
-                                border: "none",
-                                cursor: i === 0 ? "default" : "pointer",
-                                opacity: i === 0 ? 0.2 : 1,
-                                fontSize: "1rem",
-                              }}
-                            >
-                              ▲
-                            </button>
-                            <button
-                              onClick={() => moveStep(i, 1)}
-                              disabled={i === history.length - 1}
-                              style={{
-                                background: "transparent",
-                                color: theme.text,
-                                border: "none",
-                                cursor:
-                                  i === history.length - 1
-                                    ? "default"
-                                    : "pointer",
-                                opacity: i === history.length - 1 ? 0.2 : 1,
-                                fontSize: "1rem",
-                              }}
-                            >
-                              ▼
-                            </button>
-                            <button
-                              onClick={() => removeStep(i)}
-                              style={{
-                                background: "transparent",
-                                color: theme.danger,
-                                border: "none",
-                                cursor: "pointer",
-                                marginLeft: "6px",
-                                fontSize: "1.1rem",
-                              }}
-                            >
-                              ×
-                            </button>
-                          </div>
+                          {viewMode === "calculator" && (
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button
+                                onClick={() => moveStep(i, -1)}
+                                disabled={i === 0}
+                                style={{
+                                  background: "transparent",
+                                  color: theme.text,
+                                  border: "none",
+                                  cursor: i === 0 ? "default" : "pointer",
+                                  opacity: i === 0 ? "0.2" : "1",
+                                  fontSize: "1rem",
+                                }}
+                              >
+                                ▲
+                              </button>
+                              <button
+                                onClick={() => moveStep(i, 1)}
+                                disabled={i === history.length - 1}
+                                style={{
+                                  background: "transparent",
+                                  color: theme.text,
+                                  border: "none",
+                                  cursor:
+                                    i === history.length - 1
+                                      ? "default"
+                                      : "pointer",
+                                  opacity:
+                                    i === history.length - 1 ? "0.2" : "1",
+                                  fontSize: "1rem",
+                                }}
+                              >
+                                ▼
+                              </button>
+                              <button
+                                onClick={() => removeStep(i)}
+                                style={{
+                                  background: "transparent",
+                                  color: theme.danger,
+                                  border: "none",
+                                  cursor: "pointer",
+                                  marginLeft: "6px",
+                                  fontSize: "1.1rem",
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Result Badge rendered next to the second and subsequent skills */}
                         {i > 0 && (
                           <div
                             style={{
@@ -876,12 +1201,6 @@ function App() {
                                 {step.isLevel4 ? "LV4" : ""}
                               </span>
                             )}
-                            <span
-                              style={{
-                                color: darkMode ? "#ccc" : "#444",
-                                fontSize: "1rem",
-                              }}
-                            ></span>
                           </div>
                         )}
                       </div>
@@ -889,7 +1208,7 @@ function App() {
                   </div>
                 </div>
 
-                {history.length > 0 && (
+                {history.length > 0 && viewMode === "calculator" && (
                   <div
                     style={{
                       width: isMobile ? "100%" : "320px",
@@ -899,7 +1218,7 @@ function App() {
                     }}
                   >
                     <div style={{ fontSize: "0.85rem", color: theme.muted }}>
-                      == Export ==
+                      == Export Data ==
                     </div>
                     <button
                       onClick={() => handleCopy("simple")}
@@ -989,7 +1308,7 @@ function App() {
               </div>
             </section>
 
-            {/* Branch Rendering Block */}
+            {/* Branch Interaction Elements Block */}
             <section>
               <div
                 style={{
@@ -998,12 +1317,13 @@ function App() {
                   marginBottom: "1.5rem",
                 }}
               >
-                =={" "}
-                {antiChainMode
-                  ? "SAFETY BRANCHES (ZERO LINK)"
-                  : "BRANCH SKILLS"}{" "}
-                ==
+                {viewMode === "challenge"
+                  ? " === SIMULATION MODE === "
+                  : antiChainMode
+                    ? " === SAFETY BRANCHES (ZERO LINK) === "
+                    : " === BRANCH OPTIONS === "}
               </div>
+
               {!isChainClosed ? (
                 Object.entries(groupedNextSteps).map(([element, skills]) => {
                   const isSectionOpen =
@@ -1027,7 +1347,20 @@ function App() {
                         }}
                       >
                         <div>
-                          {antiChainMode ? (
+                          {viewMode === "challenge" ? (
+                            <span
+                              style={{
+                                border: `1px solid ${theme.border}`,
+                                padding: "6px 12px",
+                                background: theme.cardBg,
+                                color: "#b388ff",
+                                fontSize: "0.9rem",
+                                fontWeight: "bold",
+                              }}
+                            >
+                              {element.toUpperCase()}
+                            </span>
+                          ) : antiChainMode ? (
                             <span
                               style={{
                                 border: `1px solid ${theme.muted}`,
@@ -1077,34 +1410,38 @@ function App() {
                         >
                           {skills.map((ws, idx) => {
                             const hasPartyHeader =
-                              multiPartyMode && history.length > 0;
+                              viewMode === "challenge" ||
+                              (multiPartyMode && history.length > 0);
+                            const isSelectable = canSelectSkills;
+
                             return (
                               <button
                                 key={`${ws.weaponType}-${ws.name}-${idx}`}
                                 onClick={() =>
-                                  ws.isPriority &&
+                                  isSelectable &&
                                   addToChain(ws.name, ws.weaponType)
                                 }
+                                disabled={!isSelectable}
                                 style={{
                                   position: "relative",
                                   padding: "14px",
                                   paddingTop: hasPartyHeader ? "26px" : "14px",
                                   background: theme.itemBg,
                                   color: theme.text,
-                                  border: ws.isPriority
-                                    ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
+                                  border: isSelectable
+                                    ? `2px solid ${viewMode === "challenge" ? "#b388ff" : antiChainMode ? theme.danger : theme.accent}`
                                     : `1px solid ${theme.border}`,
-                                  cursor: ws.isPriority
+                                  cursor: isSelectable
                                     ? "pointer"
                                     : "not-allowed",
                                   fontFamily: "monospace",
                                   textAlign: "left",
                                   width: isMobile ? "100%" : "185px",
                                   boxSizing: "border-box",
-                                  boxShadow: ws.isPriority
-                                    ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
+                                  boxShadow: isSelectable
+                                    ? `4px 4px 0px ${viewMode === "challenge" ? "#b388ff" : antiChainMode ? theme.danger : theme.accent}`
                                     : "none",
-                                  opacity: ws.isPriority ? 1 : 0.4,
+                                  opacity: isSelectable ? 1 : 0.4,
                                 }}
                               >
                                 {hasPartyHeader && (
@@ -1114,10 +1451,12 @@ function App() {
                                       top: "6px",
                                       right: "10px",
                                       fontSize: "0.85rem",
-                                      color: ws.isPriority
-                                        ? antiChainMode
-                                          ? theme.danger
-                                          : "#b388ff"
+                                      color: isSelectable
+                                        ? viewMode === "challenge"
+                                          ? "#b388ff"
+                                          : antiChainMode
+                                            ? theme.danger
+                                            : theme.accent
                                         : theme.muted,
                                       fontWeight: "bold",
                                       textTransform: "uppercase",
