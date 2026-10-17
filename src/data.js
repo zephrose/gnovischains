@@ -275,7 +275,7 @@ export const weaponskills = {
     Sarv: ["Transfixion", "Scission", "Gravitation"],
   },
 
-  Marksmapship: {
+  Marksmanship: {
     "Hot Shot": ["Liquefaction", "Transfixion"],
     "Split Shot": ["Reverberation", "Transfixion"],
     "Sniper Shot": ["Liquefaction", "Transfixion"],

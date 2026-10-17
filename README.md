@@ -61,7 +61,7 @@ Add Weapons: Use the dropdown at the top to add weapon types to your party.
 
 Start a Chain: Click on any Weapon Skill under "STARTING WEAPON SKILLS".
 
-Trace: Follow the "BRANCH SKILLS" section. Buttons with a border and shadow represent the "Priority" skillchain the game will actually execute.
+Trace: Follow the "BRANCH SKILLS" section. Only the valid next skillchains determined by game priority are displayed.
 
 Toggle Theme: Use the button in the top-right corner to switch between Dark and Light modes.
 

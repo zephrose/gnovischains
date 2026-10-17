@@ -195,9 +195,9 @@ function App() {
     return config.type === "solid"
       ? { ...baseStyle, backgroundColor: config.color }
       : {
-          ...baseStyle,
-          background: `linear-gradient(135deg, ${config.colors[0]} 0%, ${config.colors[1]} 100%)`,
-        };
+        ...baseStyle,
+        background: `linear-gradient(135deg, ${config.colors[0]} 0%, ${config.colors[1]} 100%)`,
+      };
   };
 
   const startChallengeRound = React.useCallback(() => {
@@ -415,21 +415,14 @@ function App() {
             });
           }
         } else {
-          const closerProps = getWSProperties(wsName, wType);
-          const possibleResults = new Set();
-          for (let s of starterProps) {
-            for (let c of closerProps) {
-              if (skillchains[s]?.[c]) possibleResults.add(skillchains[s][c]);
-            }
-          }
-          possibleResults.forEach((res) => {
-            if (!groups[res]) groups[res] = [];
-            groups[res].push({
+          if (priorityResult !== null) {
+            if (!groups[priorityResult]) groups[priorityResult] = [];
+            groups[priorityResult].push({
               name: wsName,
               weaponType: wType,
-              isPriority: res === priorityResult,
+              isPriority: true,
             });
-          });
+          }
         }
       });
     });
@@ -899,13 +892,12 @@ function App() {
                       marginTop: "12px",
                       padding: "10px",
                       background: theme.bg,
-                      borderLeft: `3px solid ${
-                        challengeState === "SUCCESS"
+                      borderLeft: `3px solid ${challengeState === "SUCCESS"
                           ? "#2ecc71"
                           : challengeState === "FAILED"
                             ? theme.danger
                             : "#b388ff"
-                      }`,
+                        }`,
                     }}
                   >
                     <div style={{ fontWeight: "bold", fontSize: "0.9rem" }}>
@@ -1412,7 +1404,7 @@ function App() {
                             const hasPartyHeader =
                               viewMode === "challenge" ||
                               (multiPartyMode && history.length > 0);
-                            const isSelectable = canSelectSkills;
+                            const isSelectable = canSelectSkills && ws.isPriority;
 
                             return (
                               <button
