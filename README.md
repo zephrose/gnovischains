@@ -10,6 +10,8 @@ A specialized React application for calculating and tracing Weapon Skillchains i
 
 - Branch Analysis: Visualizes all possible next steps, highlighting the priority path the game engine will select.
 
+- Element Filtering: Toggle the 8 skillchain magic elements (Fire, Ice, Wind, Earth/Stone, Lightning, Water, Light, Dark) to filter branch options in real-time.
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:
@@ -62,6 +64,8 @@ Add Weapons: Use the dropdown at the top to add weapon types to your party.
 Start a Chain: Click on any Weapon Skill under "STARTING WEAPON SKILLS".
 
 Trace: Follow the "BRANCH SKILLS" section. Only the valid next skillchains determined by game priority are displayed.
+
+Filter Elements: Toggle the 8 elemental switches between the weapon selection and clear button to narrow down branch options to specific elements (with quick [ ALL ] / [ NONE ] controls).
 
 Toggle Theme: Use the button in the top-right corner to switch between Dark and Light modes.
 

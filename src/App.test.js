@@ -12,9 +12,9 @@ describe("Skillchain Priority and Branch Display", () => {
   test("Leaden Salute followed by Black Halo only displays Black Halo under Fragmentation, not Compression", () => {
     render(<App />);
 
-    // Add Marksmanship to party via the combobox
-    const addWeaponSelect = screen.getByRole("combobox");
-    fireEvent.change(addWeaponSelect, { target: { value: "Marksmanship" } });
+    // Switch to Marksmanship (in default party slots)
+    const marksmanshipBtn = screen.getByRole("button", { name: "MARKSMANSHIP" });
+    fireEvent.click(marksmanshipBtn);
 
     // Click Leaden Salute
     const leadenSaluteBtn = screen.getByRole("button", {
@@ -115,19 +115,108 @@ describe("Skillchain Priority and Branch Display", () => {
     fireEvent.click(savageBladeBtn);
 
     // Get all branch buttons rendered in branch options (excluding top controls)
-    const branchContainer = screen.getByText(/=== BRANCH OPTIONS ===/i).closest("section");
+    const branchContainer = screen
+      .getByText(/=== BRANCH OPTIONS ===/i)
+      .closest("section");
     const wsButtons = branchContainer.querySelectorAll("button");
 
     const seenSkills = new Map();
     wsButtons.forEach((btn) => {
       const strongText = btn.querySelector("strong")?.textContent;
       if (strongText) {
-        // Each unique WS for a weapon type must appear at most once in branch options
         const weaponBadge = btn.querySelector("div")?.textContent?.trim() || "";
         const key = `${weaponBadge}:${strongText}`;
         expect(seenSkills.has(key)).toBe(false);
         seenSkills.set(key, true);
       }
     });
+  });
+});
+
+describe("Skillchain Element Filter Feature", () => {
+  test("renders all 8 element toggles active by default", () => {
+    render(<App />);
+
+    expect(screen.getByText(/== SKILLCHAIN ELEMENT FILTER ==/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[8\/8 ACTIVE\]/i)).toBeInTheDocument();
+
+    const elementFilters = [
+      { key: "Fire", title: "Toggle FIRE filter" },
+      { key: "Ice", title: "Toggle ICE filter" },
+      { key: "Wind", title: "Toggle WIND filter" },
+      { key: "Earth", title: "Toggle EARTH (STONE) filter" },
+      { key: "Lightning", title: "Toggle LIGHTNING filter" },
+      { key: "Water", title: "Toggle WATER filter" },
+      { key: "Light", title: "Toggle LIGHT filter" },
+      { key: "Dark", title: "Toggle DARK filter" },
+    ];
+
+    elementFilters.forEach(({ title }) => {
+      const btn = screen.getByTitle(title);
+      expect(btn).toBeInTheDocument();
+      expect(btn).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+
+  test("toggling off an element immediately removes corresponding branch options", () => {
+    render(<App />);
+
+    // Switch to Marksmanship and select Leaden Salute
+    const marksmanshipBtn = screen.getByRole("button", { name: "MARKSMANSHIP" });
+    fireEvent.click(marksmanshipBtn);
+
+    const leadenSaluteBtn = screen.getByRole("button", {
+      name: /Leaden Salute/i,
+    });
+    fireEvent.click(leadenSaluteBtn);
+
+    // Switch to Club: Black Halo is available under Fragmentation (Wind + Lightning)
+    const clubBtn = screen.getByRole("button", { name: "CLUB" });
+    fireEvent.click(clubBtn);
+
+    expect(screen.getByRole("button", { name: /Black Halo/i })).toBeInTheDocument();
+
+    // Toggle off Wind and Lightning
+    const windBtn = screen.getByTitle("Toggle WIND filter");
+    const lightningBtn = screen.getByTitle("Toggle LIGHTNING filter");
+    fireEvent.click(windBtn);
+    fireEvent.click(lightningBtn);
+
+    // Black Halo (Fragmentation) should now be hidden
+    expect(screen.queryByRole("button", { name: /Black Halo/i })).not.toBeInTheDocument();
+
+    // Toggle Lightning back on
+    fireEvent.click(lightningBtn);
+
+    // Black Halo (Fragmentation) should reappear
+    expect(screen.getByRole("button", { name: /Black Halo/i })).toBeInTheDocument();
+  });
+
+  test("[ NONE ] disables all elements and displays filter empty state, [ ALL ] restores all", () => {
+    render(<App />);
+
+    // Start a chain with Hand-to-Hand: Raging Fist
+    const ragingFistBtn = screen.getByRole("button", {
+      name: /Raging Fist/i,
+    });
+    fireEvent.click(ragingFistBtn);
+
+    // Click [ NONE ]
+    const noneBtn = screen.getByRole("button", { name: /\[ NONE \]/i });
+    fireEvent.click(noneBtn);
+
+    expect(screen.getByText(/\[0\/8 ACTIVE\]/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/\[ NO_BRANCHES_MATCH_ELEMENT_FILTER \]/i),
+    ).toBeInTheDocument();
+
+    // Click [ ALL ]
+    const allBtn = screen.getByRole("button", { name: /\[ ALL \]/i });
+    fireEvent.click(allBtn);
+
+    expect(screen.getByText(/\[8\/8 ACTIVE\]/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/\[ NO_BRANCHES_MATCH_ELEMENT_FILTER \]/i),
+    ).not.toBeInTheDocument();
   });
 });

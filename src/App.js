@@ -41,6 +41,34 @@ const ELEMENT_MAP = {
   },
 };
 
+const SKILLCHAIN_ELEMENTS = {
+  Liquefaction: ["Fire"],
+  Induration: ["Ice"],
+  Detonation: ["Wind"],
+  Scission: ["Earth"],
+  Impaction: ["Lightning"],
+  Reverberation: ["Water"],
+  Transfixion: ["Light"],
+  Compression: ["Dark"],
+  Fusion: ["Fire", "Light"],
+  Distortion: ["Ice", "Water"],
+  Fragmentation: ["Wind", "Lightning"],
+  Gravitation: ["Earth", "Dark"],
+  Light: ["Light", "Fire", "Wind", "Lightning"],
+  Darkness: ["Dark", "Earth", "Water", "Ice"],
+};
+
+const ELEMENT_CONFIG = [
+  { key: "Fire", label: "FIRE", icon: "🔥", color: ELEMENT_COLORS.Fire, textColor: "#fff" },
+  { key: "Ice", label: "ICE", icon: "❄️", color: ELEMENT_COLORS.Ice, textColor: "#000" },
+  { key: "Wind", label: "WIND", icon: "🌪️", color: ELEMENT_COLORS.Wind, textColor: "#000" },
+  { key: "Earth", label: "EARTH (STONE)", icon: "🪨", color: ELEMENT_COLORS.Earth, textColor: "#fff" },
+  { key: "Lightning", label: "LIGHTNING", icon: "⚡", color: ELEMENT_COLORS.Lightning, textColor: "#000" },
+  { key: "Water", label: "WATER", icon: "💧", color: ELEMENT_COLORS.Water, textColor: "#fff" },
+  { key: "Light", label: "LIGHT", icon: "✨", color: ELEMENT_COLORS.Light, textColor: "#000" },
+  { key: "Dark", label: "DARK", icon: "🌑", color: ELEMENT_COLORS.Dark, textColor: "#fff" },
+];
+
 // --- PURE GRAPH UTILITIES ---
 const getWSProperties = (wsName, weaponCategory) =>
   weaponskills[weaponCategory]?.[wsName] || [];
@@ -131,13 +159,56 @@ function App() {
     "Sword",
     "Club",
     "Dagger",
-    "Katana",
+    "Marksmanship",
   ]);
   const [activeWeaponType, setActiveWeaponType] = useState("Hand-to-Hand");
   const [darkMode, setDarkMode] = useState(true);
   const [antiChainMode, setAntiChainMode] = useState(false);
   const [multiPartyMode, setMultiPartyMode] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(null);
+  const [activeElements, setActiveElements] = useState({
+    Fire: true,
+    Ice: true,
+    Wind: true,
+    Earth: true,
+    Lightning: true,
+    Water: true,
+    Light: true,
+    Dark: true,
+  });
+
+  const toggleElement = (elKey) => {
+    setActiveElements((prev) => ({
+      ...prev,
+      [elKey]: !prev[elKey],
+    }));
+  };
+
+  const selectAllElements = () => {
+    setActiveElements({
+      Fire: true,
+      Ice: true,
+      Wind: true,
+      Earth: true,
+      Lightning: true,
+      Water: true,
+      Light: true,
+      Dark: true,
+    });
+  };
+
+  const clearAllElements = () => {
+    setActiveElements({
+      Fire: false,
+      Ice: false,
+      Wind: false,
+      Earth: false,
+      Lightning: false,
+      Water: false,
+      Light: false,
+      Dark: false,
+    });
+  };
 
   // Responsive Layout Toggles
   const [isMobile, setIsMobile] = useState(false);
@@ -416,12 +487,18 @@ function App() {
           }
         } else {
           if (priorityResult !== null) {
-            if (!groups[priorityResult]) groups[priorityResult] = [];
-            groups[priorityResult].push({
-              name: wsName,
-              weaponType: wType,
-              isPriority: true,
-            });
+            const scElements = SKILLCHAIN_ELEMENTS[priorityResult] || [];
+            const matchesElementFilter = scElements.some(
+              (el) => activeElements[el],
+            );
+            if (matchesElementFilter) {
+              if (!groups[priorityResult]) groups[priorityResult] = [];
+              groups[priorityResult].push({
+                name: wsName,
+                weaponType: wType,
+                isPriority: true,
+              });
+            }
           }
         }
       });
@@ -893,10 +970,10 @@ function App() {
                       padding: "10px",
                       background: theme.bg,
                       borderLeft: `3px solid ${challengeState === "SUCCESS"
-                          ? "#2ecc71"
-                          : challengeState === "FAILED"
-                            ? theme.danger
-                            : "#b388ff"
+                        ? "#2ecc71"
+                        : challengeState === "FAILED"
+                          ? theme.danger
+                          : "#b388ff"
                         }`,
                     }}
                   >
@@ -1010,6 +1087,214 @@ function App() {
                       </option>
                     ))}
                 </select>
+              </div>
+            )}
+
+            {/* Skillchain Element Filter - Toggles for the 8 elements */}
+            {viewMode === "calculator" && (
+              <div
+                style={{
+                  marginBottom: "18px",
+                  padding: "14px 16px",
+                  background: theme.cardBg,
+                  border: `1px solid ${darkMode ? "#333" : "#ddd"}`,
+                  boxShadow: `2px 2px 0px ${theme.border}`,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                    marginBottom: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "0.85rem",
+                        fontWeight: "bold",
+                        color: theme.muted,
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      == SKILLCHAIN ELEMENT FILTER ==
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        color: theme.muted,
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      [{Object.values(activeElements).filter(Boolean).length}/8 ACTIVE]
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      onClick={selectAllElements}
+                      title="Enable all elements"
+                      style={{
+                        cursor: "pointer",
+                        background: theme.itemBg,
+                        border: `1px solid ${theme.border}`,
+                        color: theme.text,
+                        padding: "4px 10px",
+                        fontSize: "0.75rem",
+                        fontWeight: "bold",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      [ ALL ]
+                    </button>
+                    <button
+                      onClick={clearAllElements}
+                      title="Disable all elements"
+                      style={{
+                        cursor: "pointer",
+                        background: theme.itemBg,
+                        border: `1px solid ${theme.border}`,
+                        color: theme.text,
+                        padding: "4px 10px",
+                        fontSize: "0.75rem",
+                        fontWeight: "bold",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      [ NONE ]
+                    </button>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile
+                      ? "repeat(2, 1fr)"
+                      : "repeat(auto-fit, minmax(130px, 1fr))",
+                    gap: "8px",
+                  }}
+                >
+                  {ELEMENT_CONFIG.map((el) => {
+                    const isActive = !!activeElements[el.key];
+                    return (
+                      <button
+                        key={el.key}
+                        onClick={() => toggleElement(el.key)}
+                        title={`Toggle ${el.label} filter`}
+                        aria-pressed={isActive}
+                        style={{
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 10px",
+                          fontFamily: "monospace",
+                          fontSize: "0.8rem",
+                          fontWeight: "bold",
+                          border: isActive
+                            ? `2px solid ${
+                                el.key === "Dark" && darkMode
+                                  ? "#777"
+                                  : el.key === "Light" && !darkMode
+                                    ? "#d4af37"
+                                    : el.color
+                              }`
+                            : `1px dashed ${theme.border}`,
+                          background: isActive
+                            ? darkMode
+                              ? el.key === "Dark"
+                                ? "#1e1e1e"
+                                : `${el.color}25`
+                              : el.key === "Light"
+                                ? "#fffbe6"
+                                : `${el.color}22`
+                            : theme.itemBg,
+                          color: isActive
+                            ? el.key === "Dark" && darkMode
+                              ? "#fff"
+                              : el.key === "Light" && !darkMode
+                                ? "#333"
+                                : el.color
+                            : theme.muted,
+                          opacity: isActive ? 1 : 0.45,
+                          transition: "all 0.15s ease",
+                          boxShadow: isActive
+                            ? `2px 2px 0px ${
+                                el.key === "Dark" && darkMode
+                                  ? "#555"
+                                  : el.key === "Light" && !darkMode
+                                    ? "#c0a030"
+                                    : el.color
+                              }`
+                            : "none",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <span style={{ fontSize: "1rem" }}>{el.icon}</span>
+                          <span>{el.label}</span>
+                        </span>
+                        {/* Mini Slider Switch */}
+                        <div
+                          style={{
+                            width: "28px",
+                            height: "14px",
+                            borderRadius: "10px",
+                            background: isActive
+                              ? el.key === "Dark"
+                                ? darkMode
+                                  ? "#666"
+                                  : "#000"
+                                : el.color
+                              : darkMode
+                                ? "#333"
+                                : "#ccc",
+                            position: "relative",
+                            transition: "background 0.2s ease",
+                            flexShrink: 0,
+                            marginLeft: "6px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "10px",
+                              height: "10px",
+                              borderRadius: "50%",
+                              background:
+                                isActive &&
+                                (el.key === "Light" || el.key === "Ice")
+                                  ? "#000"
+                                  : "#fff",
+                              position: "absolute",
+                              top: "2px",
+                              left: isActive ? "16px" : "2px",
+                              transition: "left 0.2s ease",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                            }}
+                          />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
@@ -1317,7 +1602,8 @@ function App() {
               </div>
 
               {!isChainClosed ? (
-                Object.entries(groupedNextSteps).map(([element, skills]) => {
+                Object.keys(groupedNextSteps).length > 0 ? (
+                  Object.entries(groupedNextSteps).map(([element, skills]) => {
                   const isSectionOpen =
                     !isMobile || !!expandedSections[element];
 
@@ -1479,6 +1765,23 @@ function App() {
                     </div>
                   );
                 })
+                ) : (
+                  <div
+                    style={{
+                      padding: "36px",
+                      border: `1px dashed ${theme.border}`,
+                      color: theme.muted,
+                      textAlign: "center",
+                      background: theme.itemBg,
+                      fontSize: "0.95rem",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {history.length > 0
+                      ? "[ NO_BRANCHES_MATCH_ELEMENT_FILTER ]"
+                      : "[ NO_AVAILABLE_OPTIONS ]"}
+                  </div>
+                )
               ) : (
                 <div
                   style={{
