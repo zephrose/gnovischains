@@ -534,6 +534,10 @@ function App() {
   };
 
   const groupedNextSteps = getGroupedNextSteps();
+  const activeElementCount = Object.values(activeElements).filter(Boolean).length;
+  const isAllElementsSelected = activeElementCount === 8;
+  const isNoElementsSelected = activeElementCount === 0;
+
   const isChainClosed =
     viewMode === "calculator" &&
     history.length > 0 &&
@@ -1136,41 +1140,65 @@ function App() {
                         fontFamily: "monospace",
                       }}
                     >
-                      [{Object.values(activeElements).filter(Boolean).length}/8 ACTIVE]
+                      [{activeElementCount}/8 ACTIVE]
                     </span>
                   </div>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button
                       onClick={selectAllElements}
-                      title="Enable all elements"
+                      title={
+                        isAllElementsSelected
+                          ? "All elements currently active"
+                          : "Enable all elements"
+                      }
                       style={{
                         cursor: "pointer",
-                        background: theme.itemBg,
-                        border: `1px solid ${theme.border}`,
-                        color: theme.text,
+                        background: isAllElementsSelected
+                          ? darkMode
+                            ? "#2ecc7125"
+                            : "#e8f8f0"
+                          : theme.itemBg,
+                        border: isAllElementsSelected
+                          ? "1px solid #2ecc71"
+                          : `1px solid ${theme.border}`,
+                        color: isAllElementsSelected ? "#2ecc71" : theme.text,
                         padding: "4px 10px",
                         fontSize: "0.75rem",
                         fontWeight: "bold",
                         fontFamily: "monospace",
+                        boxShadow: isAllElementsSelected
+                          ? "2px 2px 0px #2ecc71"
+                          : "none",
+                        transition: "all 0.15s ease",
                       }}
                     >
-                      [ ALL ]
+                      {isAllElementsSelected ? "[ ALL SELECTED ✓ ]" : "[ ALL ]"}
                     </button>
                     <button
                       onClick={clearAllElements}
                       title="Disable all elements"
                       style={{
                         cursor: "pointer",
-                        background: theme.itemBg,
-                        border: `1px solid ${theme.border}`,
-                        color: theme.text,
+                        background: isNoElementsSelected
+                          ? darkMode
+                            ? "#ff475725"
+                            : "#ffeae8"
+                          : theme.itemBg,
+                        border: isNoElementsSelected
+                          ? "1px solid #ff4757"
+                          : `1px solid ${theme.border}`,
+                        color: isNoElementsSelected ? "#ff4757" : theme.text,
                         padding: "4px 10px",
                         fontSize: "0.75rem",
                         fontWeight: "bold",
                         fontFamily: "monospace",
+                        boxShadow: isNoElementsSelected
+                          ? "2px 2px 0px #ff4757"
+                          : "none",
+                        transition: "all 0.15s ease",
                       }}
                     >
-                      [ NONE ]
+                      {isNoElementsSelected ? "[ NONE SELECTED ]" : "[ NONE ]"}
                     </button>
                   </div>
                 </div>

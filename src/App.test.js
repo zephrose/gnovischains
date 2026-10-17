@@ -219,4 +219,30 @@ describe("Skillchain Element Filter Feature", () => {
       screen.queryByText(/\[ NO_BRANCHES_MATCH_ELEMENT_FILTER \]/i),
     ).not.toBeInTheDocument();
   });
+
+  test("All button indicates all have been selected and reverts/disappears when element is deselected", () => {
+    render(<App />);
+
+    // Initially all 8 are selected: button indicates all selected
+    expect(
+      screen.getByRole("button", { name: /\[ ALL SELECTED ✓ \]/i }),
+    ).toBeInTheDocument();
+
+    // Deselect one element (e.g. Fire)
+    const fireBtn = screen.getByTitle("Toggle FIRE filter");
+    fireEvent.click(fireBtn);
+
+    // [ ALL SELECTED ✓ ] indicator must disappear and revert to [ ALL ]
+    expect(
+      screen.queryByRole("button", { name: /\[ ALL SELECTED ✓ \]/i }),
+    ).not.toBeInTheDocument();
+    const allBtn = screen.getByRole("button", { name: /^\[ ALL \]$/i });
+    expect(allBtn).toBeInTheDocument();
+
+    // Clicking [ ALL ] re-enables all and restores the [ ALL SELECTED ✓ ] indicator
+    fireEvent.click(allBtn);
+    expect(
+      screen.getByRole("button", { name: /\[ ALL SELECTED ✓ \]/i }),
+    ).toBeInTheDocument();
+  });
 });
