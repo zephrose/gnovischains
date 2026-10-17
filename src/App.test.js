@@ -246,3 +246,250 @@ describe("Skillchain Element Filter Feature", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("FFXI Skillchain Survival Game", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  test("swaps title icons: 🎮 in calculator, 💻 in game, and toggles views when clicked", () => {
+    render(<App />);
+
+    // In calculator: Title is Gnovi's Chains, icon is 🎮
+    expect(screen.getByText("Gnovi's Chains")).toBeInTheDocument();
+    const iconBtn = screen.getByTitle(/Access FFXI Skillchain Survival Game/i);
+    expect(iconBtn).toHaveTextContent("🎮");
+
+    // Click icon to enter Survival Game
+    fireEvent.click(iconBtn);
+
+    // In game: Title is FFXI Skillchain Survival, icon is 💻
+    expect(screen.getByText("FFXI Skillchain Survival")).toBeInTheDocument();
+    const returnBtn = screen.getByTitle(/Return to Calculator/i);
+    expect(returnBtn).toHaveTextContent("💻");
+
+    // Click icon to return to Calculator
+    fireEvent.click(returnBtn);
+    expect(screen.getByText("Gnovi's Chains")).toBeInTheDocument();
+    expect(screen.getByTitle(/Access FFXI Skillchain Survival Game/i)).toHaveTextContent("🎮");
+  });
+
+  test("initiates survival game with Game Master briefing, pause window, and 3 options", () => {
+    render(<App />);
+
+    // Enter Survival Game
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Game Master briefing displayed
+    expect(
+      screen.getByText(/FFXI SKILLCHAIN SURVIVAL ARENA • GAME MASTER/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/CURRENT STREAK:/i)).toBeInTheDocument();
+    expect(screen.getByText(/HIGH SCORE:/i)).toBeInTheDocument();
+
+    // 4-second pause window displayed initially
+    expect(screen.getByText(/PAUSE WINDOW \(INACTIVE\):/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /SKIP PAUSE/i })).toBeInTheDocument();
+
+    // Skip pause window to open active link window
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+    expect(screen.getByText(/TIME REMAINING: 10(\.0)? SECONDS/i)).toBeInTheDocument();
+
+    // 3 multiple-choice options (A, B, C)
+    expect(screen.getByText(/\[ A \]/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[ B \]/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[ C \]/i)).toBeInTheDocument();
+
+    // Battle chronicle log present
+    expect(screen.getByText(/== BATTLE CHRONICLE LOG ==/i)).toBeInTheDocument();
+  });
+
+  test("warns player when attempting to select option during 4-second pause window", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Initially in pause window
+    expect(screen.getByText(/PAUSE WINDOW \(INACTIVE\):/i)).toBeInTheDocument();
+
+    // Click an option button during pause window
+    const allButtons = screen.getAllByRole("button");
+    const optionBtn = allButtons.find(
+      (btn) =>
+        btn.textContent.includes("[ A ]") ||
+        btn.textContent.includes("[ B ]") ||
+        btn.textContent.includes("[ C ]"),
+    );
+    fireEvent.click(optionBtn);
+
+    // Warning banner displayed
+    expect(screen.getByText(/TOO EARLY!/i)).toBeInTheDocument();
+  });
+
+  test("selecting a specific premade flow (Samurai Light to Radiance) sets Tachi: Yukikaze as opener", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Select Samurai Light to Radiance (Great Katana)
+    const sequenceSelect = screen.getByRole("combobox");
+    fireEvent.change(sequenceSelect, { target: { value: "light-cap-gk" } });
+
+    // Opener is Tachi: Yukikaze
+    expect(screen.getAllByText("Tachi: Yukikaze")[0]).toBeInTheDocument();
+    expect(screen.getAllByText(/Great Katana/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/None \(Opener Initiated\)/i)).toBeInTheDocument();
+
+    // Skip pause to unlock choices
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+
+    // Option choices contain Tachi: Koki as the correct link
+    expect(screen.getByRole("button", { name: /Tachi: Koki/i })).toBeInTheDocument();
+  });
+
+  test("completing all steps of a sequence finishes with celebration and FFXI rule conclusion", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Select Samurai Light to Radiance (Tachi: Yukikaze -> Tachi: Koki -> Tachi: Kasha -> Tachi: Fudo)
+    const sequenceSelect = screen.getByRole("combobox");
+    fireEvent.change(sequenceSelect, { target: { value: "light-cap-gk" } });
+
+    // Step 1: Skip pause, click Tachi: Koki
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tachi: Koki/i }));
+
+    // Turn 2: Streak 1, previous WS Tachi: Koki, SC Fragmentation
+    expect(screen.getByText("CURRENT STREAK:").parentElement).toHaveTextContent("1");
+    expect(screen.getByText(/TURN 2/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/FRAGMENTATION/i).length).toBeGreaterThan(0);
+
+    // Step 2: Skip pause, click Tachi: Kasha
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tachi: Kasha/i }));
+
+    // Turn 3: Streak 2, final finisher step
+    expect(screen.getByText("CURRENT STREAK:").parentElement).toHaveTextContent("2");
+    expect(screen.getByText(/TURN 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/FINAL FINISHER LINK/i)).toBeInTheDocument();
+
+    // Step 3 (Finisher): Skip pause, click Tachi: Fudo
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tachi: Fudo/i }));
+
+    // Sequence Completed Screen displayed!
+    expect(
+      screen.getByText(/SKILLCHAIN MASTERED! SEQUENCE COMPLETED!/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/NATURAL FFXI CONCLUSION REACHED: Level 4 Radiance Cap/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /NEXT SEQUENCE/i })).toBeInTheDocument();
+  });
+
+  test("incorrect choice triggers game over with ASCII crash flare and retry button", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Select Samurai Light to Radiance
+    const sequenceSelect = screen.getByRole("combobox");
+    fireEvent.change(sequenceSelect, { target: { value: "light-cap-gk" } });
+
+    // Skip pause
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+
+    // Find the 3 option buttons
+    const allButtons = screen.getAllByRole("button");
+    const optionButtons = allButtons.filter(
+      (btn) =>
+        btn.textContent.includes("[ A ]") ||
+        btn.textContent.includes("[ B ]") ||
+        btn.textContent.includes("[ C ]"),
+    );
+    expect(optionButtons).toHaveLength(3);
+
+    // Pick an incorrect button (not Tachi: Koki)
+    const incorrectBtn = optionButtons.find(
+      (btn) => !btn.textContent.includes("Tachi: Koki"),
+    );
+    expect(incorrectBtn).toBeDefined();
+    fireEvent.click(incorrectBtn);
+
+    // Game Over ASCII Crash and Burn flare displayed
+    expect(
+      screen.getByText(/CRASH AND BURN! THE SKILLCHAIN HAS SHATTERED!/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/MISALIGNMENT \/ CHAIN BROKEN/i)).toBeInTheDocument();
+    expect(screen.getByText(/Required Continuation:/i).parentElement).toHaveTextContent("Tachi: Koki");
+
+    // Retry button restores game to PLAYING state
+    const retryBtn = screen.getByRole("button", { name: /RETRY \/ PLAY AGAIN/i });
+    fireEvent.click(retryBtn);
+
+    expect(screen.queryByText(/CRASH AND BURN/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/PAUSE WINDOW \(INACTIVE\):/i)).toBeInTheDocument();
+  });
+
+  test("celebrates new high score when player sets a new record", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Select Samurai Light to Radiance
+    const sequenceSelect = screen.getByRole("combobox");
+    fireEvent.change(sequenceSelect, { target: { value: "light-cap-gk" } });
+
+    // Turn 1: Skip pause and click Tachi: Koki
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Tachi: Koki/i }));
+
+    // Turn 2: Skip pause and pick an incorrect choice
+    fireEvent.click(screen.getByRole("button", { name: /SKIP PAUSE/i }));
+    const allButtons = screen.getAllByRole("button");
+    const optionButtons = allButtons.filter(
+      (btn) =>
+        btn.textContent.includes("[ A ]") ||
+        btn.textContent.includes("[ B ]") ||
+        btn.textContent.includes("[ C ]"),
+    );
+    const incorrectBtn = optionButtons.find(
+      (btn) => !btn.textContent.includes("Tachi: Kasha"),
+    );
+    fireEvent.click(incorrectBtn);
+
+    // Celebration banner displayed for new high score
+    expect(
+      screen.getByText(/NEW PERSONAL RECORD HIGH SCORE/i),
+    ).toBeInTheDocument();
+  });
+
+  test("keyboard keys A, B, C allow choosing options during gameplay, and Space skips pause", () => {
+    render(<App />);
+    fireEvent.click(screen.getByTitle(/Access FFXI Skillchain Survival Game/i));
+
+    // Select Samurai Light to Radiance
+    const sequenceSelect = screen.getByRole("combobox");
+    fireEvent.change(sequenceSelect, { target: { value: "light-cap-gk" } });
+
+    // Press Space on window to skip pause window
+    fireEvent.keyDown(window, { key: " " });
+    expect(screen.getByText(/TIME REMAINING:/i)).toBeInTheDocument();
+
+    // Determine which key [A], [B], or [C] corresponds to Tachi: Koki
+    const allButtons = screen.getAllByRole("button");
+    const optionButtons = allButtons.filter(
+      (btn) =>
+        btn.textContent.includes("[ A ]") ||
+        btn.textContent.includes("[ B ]") ||
+        btn.textContent.includes("[ C ]"),
+    );
+    const correctBtn = optionButtons.find((btn) =>
+      btn.textContent.includes("Tachi: Koki"),
+    );
+    const keyMatch = correctBtn.textContent.match(/\[ ([ABC]) \]/)[1];
+
+    // Press the corresponding key on window
+    fireEvent.keyDown(window, { key: keyMatch });
+
+    // Should successfully advance to Turn 2
+    expect(screen.getByText(/TURN 2/i)).toBeInTheDocument();
+  });
+});
+

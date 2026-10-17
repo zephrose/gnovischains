@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { weaponskills, skillchains } from "./data";
 
 const ELEMENT_COLORS = {
@@ -117,38 +117,269 @@ const recalculateChain = (wsList, isAnti) => {
   return newHistory;
 };
 
-const findProceduralBlueprint = (weaponsPool, target) => {
-  const options = [];
-  weaponsPool.forEach((wType) => {
-    Object.keys(weaponskills[wType] || {}).forEach((wsName) => {
-      options.push({ name: wsName, weaponType: wType });
-    });
-  });
+const ALL_WEAPONSKILLS = [];
+for (const [wType, skills] of Object.entries(weaponskills)) {
+  for (const wsName of Object.keys(skills)) {
+    ALL_WEAPONSKILLS.push({ name: wsName, weaponType: wType });
+  }
+}
 
-  const shuffled = [...options].sort(() => Math.random() - 0.5);
+const SURVIVAL_FLOWS = [
+  {
+    id: "light-cap-gk",
+    name: "Samurai Light to Radiance (Great Katana)",
+    description: "Tachi: Yukikaze → Tachi: Koki (Fragmentation) → Tachi: Kasha (Light Lv3) → Tachi: Fudo (Radiance Lv4)",
+    category: "Level 4 Radiance Cap",
+    opener: { name: "Tachi: Yukikaze", weaponType: "Great Katana" },
+    steps: [
+      { name: "Tachi: Koki", weaponType: "Great Katana", scResult: "Fragmentation" },
+      { name: "Tachi: Kasha", weaponType: "Great Katana", scResult: "Light (Lv3)" },
+      { name: "Tachi: Fudo", weaponType: "Great Katana", scResult: "Light (Lv4 Radiance)", isFinisher: true },
+    ],
+  },
+  {
+    id: "darkness-cap-katana",
+    name: "Ninja Darkness to Umbra (Katana)",
+    description: "Blade: Hi → Blade: Metsu (Darkness Lv3) → Blade: Hi (Umbra Lv4)",
+    category: "Level 4 Umbra Cap",
+    opener: { name: "Blade: Hi", weaponType: "Katana" },
+    steps: [
+      { name: "Blade: Metsu", weaponType: "Katana", scResult: "Darkness (Lv3)" },
+      { name: "Blade: Hi", weaponType: "Katana", scResult: "Darkness (Lv4 Umbra)", isFinisher: true },
+    ],
+  },
+  {
+    id: "light-cap-sword",
+    name: "Paladin Holy Radiance (Sword)",
+    description: "Fast Blade → Burning Blade (Liquefaction) → Flat Blade (Fusion) → Savage Blade (Light Lv3) → Knights of Round (Radiance Lv4)",
+    category: "Level 4 Radiance Cap",
+    opener: { name: "Fast Blade", weaponType: "Sword" },
+    steps: [
+      { name: "Burning Blade", weaponType: "Sword", scResult: "Liquefaction" },
+      { name: "Flat Blade", weaponType: "Sword", scResult: "Fusion" },
+      { name: "Savage Blade", weaponType: "Sword", scResult: "Light (Lv3)" },
+      { name: "Knights of Round", weaponType: "Sword", scResult: "Light (Lv4 Radiance)", isFinisher: true },
+    ],
+  },
+  {
+    id: "light-cap-h2h",
+    name: "Monk Cosmic Fist to Radiance (Hand-to-Hand)",
+    description: "Combo → Backhand Blow (Detonation) → One Inch Punch (Gravitation) → Dragon Kick (Fragmentation) → Final Heaven (Light Lv3) → Victory Smite (Radiance Lv4)",
+    category: "Level 4 Radiance Cap",
+    opener: { name: "Combo", weaponType: "Hand-to-Hand" },
+    steps: [
+      { name: "Backhand Blow", weaponType: "Hand-to-Hand", scResult: "Detonation" },
+      { name: "One Inch Punch", weaponType: "Hand-to-Hand", scResult: "Gravitation" },
+      { name: "Dragon Kick", weaponType: "Hand-to-Hand", scResult: "Fragmentation" },
+      { name: "Final Heaven", weaponType: "Hand-to-Hand", scResult: "Light (Lv3)" },
+      { name: "Victory Smite", weaponType: "Hand-to-Hand", scResult: "Light (Lv4 Radiance)", isFinisher: true },
+    ],
+  },
+  {
+    id: "darkness-cap-marksmanship",
+    name: "Corsair Shadow to Umbra (Marksmanship)",
+    description: "Slug Shot → Trueflight (Distortion) → Wildfire (Darkness Lv3) → Coronach (Umbra Lv4)",
+    category: "Level 4 Umbra Cap",
+    opener: { name: "Slug Shot", weaponType: "Marksmanship" },
+    steps: [
+      { name: "TruefLight", weaponType: "Marksmanship", scResult: "Distortion" },
+      { name: "Wildfire", weaponType: "Marksmanship", scResult: "Darkness (Lv3)" },
+      { name: "Coronach", weaponType: "Marksmanship", scResult: "Darkness (Lv4 Umbra)", isFinisher: true },
+    ],
+  },
+  {
+    id: "level2-rotation-sword",
+    name: "Sword Level 2 Resonance Cycle (Sword)",
+    description: "Fast Blade II → Swift Blade (Gravitation) → Savage Blade (Fragmentation) → Expiacion (Distortion) → Atonement (Fusion) → Swift Blade (Gravitation)",
+    category: "Level 2 Four-Property Rotation",
+    opener: { name: "Fast Blade II", weaponType: "Sword" },
+    steps: [
+      { name: "Swift Blade", weaponType: "Sword", scResult: "Gravitation" },
+      { name: "Savage Blade", weaponType: "Sword", scResult: "Fragmentation" },
+      { name: "Expiacion", weaponType: "Sword", scResult: "Distortion" },
+      { name: "Atonement", weaponType: "Sword", scResult: "Fusion" },
+      { name: "Swift Blade", weaponType: "Sword", scResult: "Gravitation", isFinisher: true },
+    ],
+  },
+  {
+    id: "level2-rotation-h2h",
+    name: "Monk Level 2 Resonance Cycle (Hand-to-Hand)",
+    description: "Final Heaven → Asuran Fists (Gravitation) → Dragon Kick (Fragmentation) → Dragon Blow (Distortion) → Shijin Spiral (Fusion) → Asuran Fists (Gravitation)",
+    category: "Level 2 Four-Property Rotation",
+    opener: { name: "Final Heaven", weaponType: "Hand-to-Hand" },
+    steps: [
+      { name: "Asuran Fists", weaponType: "Hand-to-Hand", scResult: "Gravitation" },
+      { name: "Dragon Kick", weaponType: "Hand-to-Hand", scResult: "Fragmentation" },
+      { name: "Dragon Blow", weaponType: "Hand-to-Hand", scResult: "Distortion" },
+      { name: "Shijin Spiral", weaponType: "Hand-to-Hand", scResult: "Fusion" },
+      { name: "Asuran Fists", weaponType: "Hand-to-Hand", scResult: "Gravitation", isFinisher: true },
+    ],
+  },
+  {
+    id: "level1-transfixion-compression",
+    name: "Dragoon Piercing Cycle (Polearm)",
+    description: "Double Thrust ⇄ Penta Thrust (Transfixion ↔ Compression Lv1 Loop up to 5-step cap)",
+    category: "Level 1 Oscillation",
+    opener: { name: "Double Thrust", weaponType: "Polearm" },
+    steps: [
+      { name: "Penta Thrust", weaponType: "Polearm", scResult: "Compression" },
+      { name: "Double Thrust", weaponType: "Polearm", scResult: "Transfixion" },
+      { name: "Penta Thrust", weaponType: "Polearm", scResult: "Compression" },
+      { name: "Double Thrust", weaponType: "Polearm", scResult: "Transfixion" },
+      { name: "Penta Thrust", weaponType: "Polearm", scResult: "Compression", isFinisher: true },
+    ],
+  },
+  {
+    id: "level1-scission-detonation",
+    name: "Thief Shadow Step (Dagger)",
+    description: "Wasp Sting ⇄ Gust Slash (Detonation ↔ Scission Lv1 Loop up to 5-step cap)",
+    category: "Level 1 Oscillation",
+    opener: { name: "Wasp Sting", weaponType: "Dagger" },
+    steps: [
+      { name: "Gust Slash", weaponType: "Dagger", scResult: "Detonation" },
+      { name: "Wasp Sting", weaponType: "Dagger", scResult: "Scission" },
+      { name: "Gust Slash", weaponType: "Dagger", scResult: "Detonation" },
+      { name: "Wasp Sting", weaponType: "Dagger", scResult: "Scission" },
+      { name: "Gust Slash", weaponType: "Dagger", scResult: "Detonation", isFinisher: true },
+    ],
+  },
+  {
+    id: "level1-liquefaction-scission",
+    name: "Sword Blade Flame & Earth (Sword)",
+    description: "Burning Blade ⇄ Fast Blade (Liquefaction ↔ Scission Lv1 Loop up to 5-step cap)",
+    category: "Level 1 Oscillation",
+    opener: { name: "Burning Blade", weaponType: "Sword" },
+    steps: [
+      { name: "Fast Blade", weaponType: "Sword", scResult: "Scission" },
+      { name: "Burning Blade", weaponType: "Sword", scResult: "Liquefaction" },
+      { name: "Fast Blade", weaponType: "Sword", scResult: "Scission" },
+      { name: "Burning Blade", weaponType: "Sword", scResult: "Liquefaction" },
+      { name: "Fast Blade", weaponType: "Sword", scResult: "Scission", isFinisher: true },
+    ],
+  },
+];
 
-  for (let ws1 of shuffled) {
-    for (let ws2 of shuffled) {
-      const step2 = recalculateChain([ws1, ws2], false);
-      if (step2.length < 2) continue;
+const getTimingWindow = (stepIndex) => {
+  if (stepIndex === 0) {
+    return {
+      seconds: 10,
+      label: "TIME REMAINING: 10 SECONDS",
+      description: "WS 1 to WS 2: 10 seconds to close the SC.",
+      subtext: "4-second pause window elapsed. Active link window is open!",
+    };
+  }
+  if (stepIndex === 1) {
+    return {
+      seconds: 7,
+      label: "TIME REMAINING: 7 SECONDS",
+      description: "WS 2 to WS 3: 7 seconds to close the SC.",
+      subtext: "Active window is shrinking!",
+    };
+  }
+  if (stepIndex === 2) {
+    return {
+      seconds: 4,
+      label: "TIME REMAINING: 4 SECONDS",
+      description: "WS 3 to WS 4: 4 seconds to close the SC.",
+      subtext: "High-speed chain execution required!",
+    };
+  }
+  return {
+    seconds: 3,
+    label: "TIME REMAINING: 3 SECONDS",
+    description: `WS ${stepIndex + 1} to WS ${stepIndex + 2} (WS 4+): 3 seconds to close the SC.`,
+    subtext: "Maximum urgency! Chain sustain window is razor-thin!",
+  };
+};
 
-      for (let ws3 of shuffled) {
-        const step3 = recalculateChain([ws1, ws2, ws3], false);
-        if (step3.length < 3) continue;
+const getIncorrectOptions = (correctWS, starterProps, count = 2) => {
+  const pool = ALL_WEAPONSKILLS.filter(
+    (w) => w.name.toLowerCase() !== correctWS.name.toLowerCase(),
+  );
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  const picked = [];
 
-        for (let ws4 of shuffled) {
-          const step4 = recalculateChain([ws1, ws2, ws3, ws4], false);
-          if (step4.length === 4) {
-            const finalChainLink = step4[3];
-            if (finalChainLink.scResult === target) {
-              return step4;
-            }
-          }
-        }
+  for (const candidate of shuffled) {
+    const sc = starterProps
+      ? getGamePriorityResult(starterProps, candidate.name, candidate.weaponType)
+      : null;
+    if (sc === null) {
+      picked.push(candidate);
+      if (picked.length === count) break;
+    }
+  }
+
+  if (picked.length < count) {
+    for (const candidate of shuffled) {
+      if (!picked.some((p) => p.name === candidate.name)) {
+        picked.push(candidate);
+        if (picked.length === count) break;
       }
     }
   }
-  return null;
+
+  return picked;
+};
+
+const generateSurvivalTurn = (
+  flow,
+  flowStepIndex,
+  streak,
+  prevWS,
+  prevSC,
+) => {
+  const step = flow.steps[flowStepIndex];
+  const correctWS = { name: step.name, weaponType: step.weaponType };
+  const resultingSC = step.scResult;
+  const isFinisher = flowStepIndex === flow.steps.length - 1;
+
+  const starterProps =
+    flowStepIndex === 0
+      ? getWSProperties(flow.opener.name, flow.opener.weaponType)
+      : prevSC && prevSC !== "None (Opener Initiated)"
+        ? [prevSC.replace(/ \(Lv\d[^)]*\)/, "").trim()]
+        : getWSProperties(prevWS?.name, prevWS?.weaponType);
+
+  const incorrect = getIncorrectOptions(correctWS, starterProps, 2);
+
+  const rawOptions = [
+    {
+      name: correctWS.name,
+      weaponType: correctWS.weaponType,
+      isCorrect: true,
+      scResult: resultingSC,
+    },
+    {
+      name: incorrect[0].name,
+      weaponType: incorrect[0].weaponType,
+      isCorrect: false,
+    },
+    {
+      name: incorrect[1].name,
+      weaponType: incorrect[1].weaponType,
+      isCorrect: false,
+    },
+  ];
+
+  const shuffledOptions = [...rawOptions].sort(() => Math.random() - 0.5);
+  const optionsWithKeys = shuffledOptions.map((opt, idx) => ({
+    ...opt,
+    keyLabel: ["A", "B", "C"][idx],
+  }));
+
+  const timing = getTimingWindow(flowStepIndex);
+
+  return {
+    turnNumber: streak + 1,
+    flowStepIndex,
+    isFinisher,
+    previousWS: flowStepIndex === 0 ? flow.opener : prevWS,
+    previousSC: flowStepIndex === 0 ? "None (Opener Initiated)" : prevSC,
+    timing,
+    options: optionsWithKeys,
+    correctOption: correctWS,
+    resultingSC,
+  };
 };
 
 function App() {
@@ -216,11 +447,73 @@ function App() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [expandedSections, setExpandedSections] = useState({});
 
-  // Challenge Simulator Engine States
-  const [challengeState, setChallengeState] = useState("IDLE"); // IDLE, APP_THINKING, USER_COOLDOWN, USER_INPUT, SUCCESS, FAILED, IMPOSSIBLE
-  const [challengeTimer, setChallengeTimer] = useState(0);
-  const [challengeTarget, setChallengeTarget] = useState("Light");
-  const [challengeBlueprint, setChallengeBlueprint] = useState(null);
+  // FFXI Skillchain Survival Game Engine States
+  const [survivalStatus, setSurvivalStatus] = useState("PLAYING"); // "PLAYING", "GAME_OVER", "COMPLETED"
+  const [survivalFlowId, setSurvivalFlowId] = useState("random");
+  const [activeSurvivalFlow, setActiveSurvivalFlow] = useState(null);
+  const [survivalStreak, setSurvivalStreak] = useState(0);
+  const [survivalHighScore, setSurvivalHighScore] = useState(() => {
+    try {
+      return (
+        parseInt(localStorage.getItem("gnovis_survival_highscore") || "0", 10) || 0
+      );
+    } catch (e) {
+      return 0;
+    }
+  });
+  const [isNewRecord, setIsNewRecord] = useState(false);
+  const [currentTurn, setCurrentTurn] = useState(null);
+  const [survivalLog, setSurvivalLog] = useState([]);
+  const [gameOverData, setGameOverData] = useState(null);
+  const [timerPhase, setTimerPhase] = useState("PAUSE"); // "PAUSE", "ACTIVE"
+  const [timeRemaining, setTimeRemaining] = useState(4.0);
+  const [earlyWarning, setEarlyWarning] = useState(null);
+
+  const phaseRef = useRef("PAUSE");
+  const phaseDurationRef = useRef(4.0);
+  const phaseStartRef = useRef(Date.now());
+
+  const skipPauseWindow = React.useCallback(() => {
+    if (timerPhase !== "PAUSE" || survivalStatus !== "PLAYING" || !currentTurn) return;
+    phaseRef.current = "ACTIVE";
+    phaseDurationRef.current = currentTurn.timing.seconds;
+    phaseStartRef.current = Date.now();
+    setTimerPhase("ACTIVE");
+    setTimeRemaining(currentTurn.timing.seconds);
+    setEarlyWarning(null);
+  }, [timerPhase, survivalStatus, currentTurn]);
+
+  const handleSurvivalTimeout = React.useCallback(() => {
+    if (survivalStatus !== "PLAYING" || !currentTurn) return;
+    setSurvivalStatus("GAME_OVER");
+    const beatHigh =
+      survivalStreak > 0 &&
+      (isNewRecord || survivalStreak > survivalHighScore);
+    setGameOverData({
+      reason: "TIMEOUT",
+      chosen: null,
+      required: currentTurn.correctOption,
+      streak: survivalStreak,
+      beatHigh,
+      resultingSC: currentTurn.resultingSC,
+      previousWS: currentTurn.previousWS,
+    });
+    setSurvivalLog((prev) => [
+      ...prev,
+      {
+        turn: currentTurn.turnNumber,
+        type: "FAIL",
+        text: `Turn ${currentTurn.turnNumber}: ⏱️ TIME EXPIRED! Active skillchain window closed before a Weapon Skill was executed! Required WS was ${currentTurn.correctOption.name}. Final Streak: ${survivalStreak}`,
+        time: new Date().toLocaleTimeString(),
+      },
+    ]);
+  }, [
+    survivalStatus,
+    currentTurn,
+    survivalStreak,
+    isNewRecord,
+    survivalHighScore,
+  ]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -271,112 +564,281 @@ function App() {
       };
   };
 
-  const startChallengeRound = React.useCallback(() => {
-    const activePool = partySlots;
-    const blueprint = findProceduralBlueprint(activePool, challengeTarget);
-
-    setHistory([]);
-    if (!blueprint) {
-      setChallengeState("IMPOSSIBLE");
-      setChallengeTimer(8);
-    } else {
-      setChallengeBlueprint(blueprint);
-      setChallengeState("APP_THINKING");
-      setChallengeTimer(2);
-    }
-  }, [partySlots, challengeTarget]);
-
-  // Unified State Machine Loop Controller
-  useEffect(() => {
-    if (challengeState === "IDLE") return;
-
-    if (challengeTimer <= 0) {
-      if (challengeState === "APP_THINKING") {
-        const nextIdx = history.length;
-        if (nextIdx === 0 || nextIdx === 2) {
-          const appAction = challengeBlueprint[nextIdx];
-          setHistory((prev) => [...prev, appAction]);
-          setChallengeState("USER_COOLDOWN");
-          setChallengeTimer(2);
-        }
-      } else if (challengeState === "USER_COOLDOWN") {
-        setChallengeState("USER_INPUT");
-      } else if (["SUCCESS", "FAILED", "IMPOSSIBLE"].includes(challengeState)) {
-        startChallengeRound();
+  const initSurvivalGame = React.useCallback(
+    (flowId = survivalFlowId, initialStreak = 0) => {
+      let targetFlow;
+      if (flowId === "random") {
+        targetFlow =
+          SURVIVAL_FLOWS[Math.floor(Math.random() * SURVIVAL_FLOWS.length)];
+      } else {
+        targetFlow =
+          SURVIVAL_FLOWS.find((f) => f.id === flowId) || SURVIVAL_FLOWS[0];
       }
+
+      setActiveSurvivalFlow(targetFlow);
+      setSurvivalStreak(initialStreak);
+      setIsNewRecord(false);
+      setSurvivalStatus("PLAYING");
+      setGameOverData(null);
+      setEarlyWarning(null);
+
+      const initialTurn = generateSurvivalTurn(
+        targetFlow,
+        0,
+        initialStreak,
+        targetFlow.opener,
+        null,
+      );
+      setCurrentTurn(initialTurn);
+
+      phaseRef.current = "PAUSE";
+      phaseDurationRef.current = 4.0;
+      phaseStartRef.current = Date.now();
+      setTimerPhase("PAUSE");
+      setTimeRemaining(4.0);
+
+      const isContinuing = initialStreak > 0;
+      setSurvivalLog((prev) => [
+        ...(isContinuing ? prev : []),
+        {
+          turn: initialStreak,
+          type: "SYSTEM",
+          text: `[GAME MASTER] Survival arena initialized with sequence: "${targetFlow.name}" (${targetFlow.category})!`,
+          time: new Date().toLocaleTimeString(),
+        },
+        {
+          turn: initialStreak,
+          type: "OPENER",
+          text: `[OPENER] Opener deployed: ${targetFlow.opener.name} (${targetFlow.opener.weaponType}). 4-second pause window active!`,
+          time: new Date().toLocaleTimeString(),
+        },
+      ]);
+    },
+    [survivalFlowId],
+  );
+
+  const handleSurvivalChoice = React.useCallback(
+    (chosenOpt) => {
+      if (survivalStatus !== "PLAYING" || !currentTurn || !activeSurvivalFlow)
+        return;
+
+      if (timerPhase === "PAUSE") {
+        setEarlyWarning(
+          `⚠️ TOO EARLY! Active link window opens in ${timeRemaining.toFixed(1)}s (4s pause window active)!`,
+        );
+        return;
+      }
+
+      if (chosenOpt.isCorrect) {
+        const nextStreak = survivalStreak + 1;
+        let newRecord = isNewRecord;
+        if (nextStreak > survivalHighScore) {
+          setSurvivalHighScore(nextStreak);
+          setIsNewRecord(true);
+          newRecord = true;
+          try {
+            localStorage.setItem(
+              "gnovis_survival_highscore",
+              String(nextStreak),
+            );
+          } catch (e) {}
+        }
+
+        setSurvivalStreak(nextStreak);
+
+        // Check if this step was the finisher of the sequence!
+        if (currentTurn.isFinisher) {
+          setSurvivalStatus("COMPLETED");
+          const beatHigh =
+            nextStreak > 0 &&
+            (newRecord || nextStreak > survivalHighScore);
+          setGameOverData({
+            reason: "COMPLETED",
+            chosen: chosenOpt,
+            required: currentTurn.correctOption,
+            streak: nextStreak,
+            beatHigh,
+            resultingSC: currentTurn.resultingSC,
+            previousWS: currentTurn.previousWS,
+            flowName: activeSurvivalFlow.name,
+            flowCategory: activeSurvivalFlow.category,
+            stepsCompleted: activeSurvivalFlow.steps.length,
+          });
+
+          setSurvivalLog((prev) => [
+            ...prev,
+            {
+              turn: currentTurn.turnNumber,
+              type: "SUCCESS",
+              text: `Turn ${currentTurn.turnNumber}: >> ${chosenOpt.name} (${chosenOpt.weaponType}) connected! Skillchain: ${currentTurn.resultingSC}! [Streak: ${nextStreak}] — 🏆 SEQUENCE COMPLETED!`,
+              time: new Date().toLocaleTimeString(),
+            },
+          ]);
+          return;
+        }
+
+        setSurvivalLog((prev) => [
+          ...prev,
+          {
+            turn: currentTurn.turnNumber,
+            type: "SUCCESS",
+            text: `Turn ${currentTurn.turnNumber}: >> ${chosenOpt.name} (${chosenOpt.weaponType}) connected! Skillchain: ${currentTurn.resultingSC}! [Streak: ${nextStreak}]`,
+            time: new Date().toLocaleTimeString(),
+          },
+        ]);
+
+        const nextTurn = generateSurvivalTurn(
+          activeSurvivalFlow,
+          currentTurn.flowStepIndex + 1,
+          nextStreak,
+          { name: chosenOpt.name, weaponType: chosenOpt.weaponType },
+          currentTurn.resultingSC,
+        );
+        setCurrentTurn(nextTurn);
+
+        // Reset timer to PAUSE 4s for next step
+        phaseRef.current = "PAUSE";
+        phaseDurationRef.current = 4.0;
+        phaseStartRef.current = Date.now();
+        setTimerPhase("PAUSE");
+        setTimeRemaining(4.0);
+        setEarlyWarning(null);
+      } else {
+        setSurvivalStatus("GAME_OVER");
+        const beatHigh =
+          survivalStreak > 0 &&
+          (isNewRecord || survivalStreak > survivalHighScore);
+        setGameOverData({
+          reason: "FAIL",
+          chosen: chosenOpt,
+          required: currentTurn.correctOption,
+          streak: survivalStreak,
+          beatHigh,
+          resultingSC: currentTurn.resultingSC,
+          previousWS: currentTurn.previousWS,
+        });
+        setSurvivalLog((prev) => [
+          ...prev,
+          {
+            turn: currentTurn.turnNumber,
+            type: "FAIL",
+            text: `Turn ${currentTurn.turnNumber}: 💥 BROKEN! ${chosenOpt.name} failed to chain! Required WS was ${currentTurn.correctOption.name}. Final Streak: ${survivalStreak}`,
+            time: new Date().toLocaleTimeString(),
+          },
+        ]);
+      }
+    },
+    [
+      survivalStatus,
+      currentTurn,
+      activeSurvivalFlow,
+      survivalStreak,
+      survivalHighScore,
+      isNewRecord,
+      timerPhase,
+      timeRemaining,
+    ],
+  );
+
+  useEffect(() => {
+    if (viewMode === "challenge" && !currentTurn) {
+      initSurvivalGame(survivalFlowId, 0);
+    }
+  }, [viewMode, currentTurn, survivalFlowId, initSurvivalGame]);
+
+  useEffect(() => {
+    if (viewMode !== "challenge" || survivalStatus !== "PLAYING" || !currentTurn) {
       return;
     }
 
-    const interval = setTimeout(() => {
-      setChallengeTimer((prev) => prev - 1);
-    }, 1000);
+    const intervalId = setInterval(() => {
+      const elapsed = (Date.now() - phaseStartRef.current) / 1000;
+      if (phaseRef.current === "PAUSE") {
+        const remaining = Math.max(0, phaseDurationRef.current - elapsed);
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
+          phaseRef.current = "ACTIVE";
+          phaseDurationRef.current = currentTurn.timing.seconds;
+          phaseStartRef.current = Date.now();
+          setTimerPhase("ACTIVE");
+          setTimeRemaining(currentTurn.timing.seconds);
+          setEarlyWarning(null);
+        }
+      } else if (phaseRef.current === "ACTIVE") {
+        const remaining = Math.max(0, phaseDurationRef.current - elapsed);
+        setTimeRemaining(remaining);
+        if (remaining <= 0) {
+          clearInterval(intervalId);
+          handleSurvivalTimeout();
+        }
+      }
+    }, 50);
 
-    return () => clearTimeout(interval);
+    return () => clearInterval(intervalId);
+  }, [viewMode, survivalStatus, currentTurn, handleSurvivalTimeout]);
+
+  useEffect(() => {
+    if (viewMode !== "challenge") return;
+
+    const handleKeyDown = (e) => {
+      if (["INPUT", "SELECT", "TEXTAREA"].includes(e.target?.tagName)) return;
+
+      if (survivalStatus === "PLAYING" && currentTurn?.options) {
+        const key = e.key.toUpperCase();
+        let matched = null;
+        if (key === "A" || key === "1") matched = currentTurn.options[0];
+        else if (key === "B" || key === "2") matched = currentTurn.options[1];
+        else if (key === "C" || key === "3") matched = currentTurn.options[2];
+
+        if (matched) {
+          e.preventDefault();
+          handleSurvivalChoice(matched);
+        } else if (e.key === " " && timerPhase === "PAUSE") {
+          e.preventDefault();
+          skipPauseWindow();
+        }
+      } else if (survivalStatus === "GAME_OVER") {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          initSurvivalGame(survivalFlowId, 0);
+        }
+      } else if (survivalStatus === "COMPLETED") {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          initSurvivalGame("random", survivalStreak);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    challengeTimer,
-    challengeState,
-    challengeBlueprint,
-    history.length,
-    startChallengeRound,
+    viewMode,
+    survivalStatus,
+    currentTurn,
+    survivalFlowId,
+    handleSurvivalChoice,
+    initSurvivalGame,
+    skipPauseWindow,
+    timerPhase,
+    survivalStreak,
   ]);
 
   const toggleAntiChain = () => {
-    if (challengeState !== "IDLE") return;
     const newMode = !antiChainMode;
     setAntiChainMode(newMode);
     setHistory(recalculateChain(history, newMode));
   };
 
   const addToChain = (wsName, weaponType) => {
-    if (challengeState === "USER_INPUT") {
-      const currentIdx = history.length; // Will be 1 or 3
-      const simulatedHistory = recalculateChain(
-        [...history, { name: wsName, weaponType }],
-        false,
-      );
-      const userAddedStep = simulatedHistory[simulatedHistory.length - 1];
-
-      // Layer 1: Immediate Victory Evaluation (Hit goal early or on step 3)
-      if (userAddedStep && userAddedStep.scResult === challengeTarget) {
-        setHistory(simulatedHistory);
-        setChallengeState("SUCCESS");
-        setChallengeTimer(6);
-        return;
-      }
-
-      // Layer 2: Continuation Verification for Step 1
-      if (currentIdx === 1) {
-        const blueprintStep = challengeBlueprint?.[currentIdx];
-        if (
-          userAddedStep &&
-          blueprintStep &&
-          userAddedStep.scResult === blueprintStep.scResult
-        ) {
-          setHistory(simulatedHistory);
-          setChallengeState("APP_THINKING");
-          setChallengeTimer(1);
-        } else {
-          setHistory(simulatedHistory);
-          setChallengeState("FAILED");
-          setChallengeTimer(6);
-        }
-      } else {
-        // Step 3 failure path (didn't satisfy Layer 1 check above)
-        setHistory(simulatedHistory);
-        setChallengeState("FAILED");
-        setChallengeTimer(6);
-      }
-    } else {
-      const newHistory = recalculateChain(
-        [...history, { name: wsName, weaponType }],
-        antiChainMode,
-      );
-      setHistory(newHistory);
-    }
+    const newHistory = recalculateChain(
+      [...history, { name: wsName, weaponType }],
+      antiChainMode,
+    );
+    setHistory(newHistory);
   };
 
   const removeStep = (index) => {
-    if (challengeState !== "IDLE") return;
     setHistory(
       recalculateChain(
         history.filter((_, i) => i !== index),
@@ -386,7 +848,6 @@ function App() {
   };
 
   const moveStep = (index, direction) => {
-    if (challengeState !== "IDLE") return;
     const newHistoryRaw = [...history];
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= newHistoryRaw.length) return;
@@ -429,26 +890,6 @@ function App() {
   };
 
   const getGroupedNextSteps = () => {
-    // Challenge Mode Option Matrix: Flat pool layout (No Cheat Sheet)
-    if (viewMode === "challenge") {
-      const list = [];
-      partySlots.forEach((wType) => {
-        Object.keys(weaponskills[wType] || {}).forEach((wsName) => {
-          list.push({
-            name: wsName,
-            weaponType: wType,
-            isPriority: true, // Keep active and valid for structural interaction
-          });
-        });
-      });
-      list.sort((a, b) => {
-        if (a.weaponType !== b.weaponType)
-          return a.weaponType.localeCompare(b.weaponType);
-        return a.name.localeCompare(b.name);
-      });
-      return { "SELECT A WEAPONSKILL": list };
-    }
-
     // Calculator Mode Option Matrices
     if (history.length === 0) {
       return {
@@ -518,19 +959,23 @@ function App() {
   };
 
   const removeFromParty = (weapon) => {
-    if (challengeState !== "IDLE") return;
     const newParty = partySlots.filter((p) => p !== weapon);
     setPartySlots(newParty);
     if (activeWeaponType === weapon) setActiveWeaponType(newParty[0] || "");
   };
 
   const handleViewSwitch = (targetMode) => {
-    if (challengeState !== "IDLE") {
-      setChallengeState("IDLE");
-    }
     setHistory([]);
     setAntiChainMode(false);
     setViewMode(targetMode);
+    if (targetMode === "challenge") {
+      initSurvivalGame(survivalFlowId);
+    }
+  };
+
+  const handleFlowSelectChange = (newFlowId) => {
+    setSurvivalFlowId(newFlowId);
+    initSurvivalGame(newFlowId);
   };
 
   const groupedNextSteps = getGroupedNextSteps();
@@ -542,8 +987,7 @@ function App() {
     viewMode === "calculator" &&
     history.length > 0 &&
     history[history.length - 1].isLevel4;
-  const canSelectSkills =
-    challengeState === "IDLE" || challengeState === "USER_INPUT";
+  const canSelectSkills = !isChainClosed;
 
   const renderActionButtons = () => (
     <>
@@ -616,6 +1060,964 @@ function App() {
       </button>
     </>
   );
+
+  const renderSurvivalGame = () => {
+    const isPause = timerPhase === "PAUSE";
+    const activeSecondsMax = currentTurn?.timing?.seconds || 10;
+    const activePercent = Math.max(
+      0,
+      Math.min(100, (timeRemaining / activeSecondsMax) * 100),
+    );
+    const pausePercent = Math.max(
+      0,
+      Math.min(100, (timeRemaining / 4.0) * 100),
+    );
+    const isUrgent = !isPause && timeRemaining <= 2.5;
+    const timerColor = isPause
+      ? "#60a5fa"
+      : isUrgent
+        ? "#ff4757"
+        : timeRemaining <= 4.0
+          ? "#f59e0b"
+          : "#10b981";
+
+    return (
+      <div style={{ width: "100%", fontFamily: "monospace" }}>
+        {/* Game Master Briefing Box */}
+        <div
+          style={{
+            background: darkMode ? "#1a1a2e" : "#eef2ff",
+            border: `1px solid ${darkMode ? "#3f3f7f" : "#c7d2fe"}`,
+            padding: "16px 20px",
+            marginBottom: "18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "8px",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div
+              style={{
+                fontWeight: "bold",
+                color: "#a5b4fc",
+                fontSize: "1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <span>⚔️</span>
+              <span>FFXI SKILLCHAIN SURVIVAL ARENA • GAME MASTER</span>
+            </div>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                background: darkMode ? "#252545" : "#e0e7ff",
+                color: "#a5b4fc",
+                padding: "2px 8px",
+                border: "1px solid #4338ca",
+              }}
+            >
+              TIMING: 4s PAUSE → SHRINKING ACTIVE WINDOW
+            </div>
+          </div>
+          <p
+            style={{
+              margin: "0 0 6px 0",
+              fontSize: "0.88rem",
+              lineHeight: "1.5",
+              color: theme.text,
+            }}
+          >
+            Welcome, adventurer! As the <strong>Game Master</strong>, I will deploy opening Weapon Skills. Your objective is to continuously extend the skillchain by choosing the correct follow-up WS from 3 choices. Each correct pick advances your <strong>Streak / Score</strong>!
+          </p>
+          <div
+            style={{
+              fontSize: "0.82rem",
+              color: theme.muted,
+              lineHeight: "1.5",
+            }}
+          >
+            <strong>FFXI Timing Windows:</strong> Every WS has a <strong>4-second pause window</strong> before a link can connect, followed by a shrinking active window (WS 1→2: <strong>10s</strong> | WS 2→3: <strong>7s</strong> | WS 3→4: <strong>4s</strong> | WS 4+: <strong>3s</strong>).
+            <div style={{ marginTop: "4px" }}>
+              <strong>Sequence Caps:</strong> In FFXI rules, Level 3 Light / Darkness and Level 4 Radiance / Umbra caps naturally conclude the chain. Complete all steps to conquer the sequence, or play Random Survival to build an unbroken streak!
+            </div>
+          </div>
+        </div>
+
+        {/* Scoreboard and Sequence Selection Bar */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+            background: theme.cardBg,
+            border: `1px solid ${theme.border}`,
+            padding: "12px 18px",
+            marginBottom: "18px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "20px",
+              flexWrap: "wrap",
+            }}
+          >
+            <div>
+              <span style={{ color: theme.muted, fontSize: "0.8rem" }}>
+                CURRENT STREAK:{" "}
+              </span>
+              <strong style={{ fontSize: "1.4rem", color: "#2ecc71" }}>
+                {survivalStreak}
+              </strong>
+            </div>
+            <div>
+              <span style={{ color: theme.muted, fontSize: "0.8rem" }}>
+                HIGH SCORE:{" "}
+              </span>
+              <strong style={{ fontSize: "1.4rem", color: "#ffd700" }}>
+                {survivalHighScore}
+              </strong>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ color: theme.muted, fontSize: "0.8rem" }}>
+              SEQUENCE:
+            </span>
+            <select
+              value={survivalFlowId}
+              onChange={(e) => handleFlowSelectChange(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                fontFamily: "monospace",
+                background: theme.itemBg,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+                cursor: "pointer",
+                maxWidth: isMobile ? "220px" : "320px",
+              }}
+            >
+              <option value="random">🔀 Random Sequence (Survival)</option>
+              {SURVIVAL_FLOWS.map((f, i) => (
+                <option key={f.id} value={f.id}>
+                  {i + 1}. {f.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => initSurvivalGame(survivalFlowId, 0)}
+              title="Restart chain run"
+              style={{
+                cursor: "pointer",
+                background: theme.accent,
+                color: theme.bg,
+                border: "none",
+                padding: "8px 14px",
+                fontWeight: "bold",
+                fontFamily: "monospace",
+              }}
+            >
+              [ ↺ RESTART ]
+            </button>
+          </div>
+        </div>
+
+        {/* Game State: SEQUENCE COMPLETED View */}
+        {survivalStatus === "COMPLETED" && (
+          <div
+            style={{
+              background: "#031a0e",
+              border: "2px solid #2ecc71",
+              padding: "24px 20px",
+              marginBottom: "18px",
+            }}
+          >
+            {/* ASCII Completion Banner */}
+            <pre
+              style={{
+                color: "#2ecc71",
+                fontSize: isMobile ? "0.55rem" : "0.75rem",
+                lineHeight: "1.1",
+                margin: "0 0 16px 0",
+                overflowX: "auto",
+                textAlign: "center",
+                fontWeight: "bold",
+              }}
+            >
+{`
+   ______ ____  __  __ ____  __     ______ ______ ______ ____  
+  / ____// __ \\/  |/  // __ \\/ /    / ____//_  __// ____// __ \\ 
+ / /    / / / / /|_/ // /_/ / /    / __/    / /  / __/  / / / / 
+/ /___ / /_/ / /  / // ____/ /___ / /___   / /  / /___ / /_/ /  
+\\____/ \\____/_/  /_//_/   /_____//_____/  /_/  /_____//_____/   
+`}
+            </pre>
+
+            <div
+              style={{
+                textAlign: "center",
+                color: "#2ecc71",
+                fontSize: "1.2rem",
+                fontWeight: "bold",
+                marginBottom: "8px",
+                letterSpacing: "1px",
+              }}
+            >
+              ✨✨ SKILLCHAIN MASTERED! SEQUENCE COMPLETED! ✨✨
+            </div>
+
+            <div
+              style={{
+                textAlign: "center",
+                color: "#ffd700",
+                fontSize: "0.92rem",
+                fontWeight: "bold",
+                marginBottom: "16px",
+              }}
+            >
+              [ NATURAL FFXI CONCLUSION REACHED: {gameOverData?.flowCategory || "Level 3 / 4 Cap"} ]
+            </div>
+
+            <div
+              style={{
+                background: "#062b17",
+                border: "1px solid #2ecc71",
+                padding: "16px 18px",
+                marginBottom: "18px",
+                fontSize: "0.92rem",
+                lineHeight: "1.6",
+              }}
+            >
+              <div>
+                🎯 <strong>Sequence:</strong>{" "}
+                <span style={{ color: "#fff", fontWeight: "bold" }}>
+                  {gameOverData?.flowName}
+                </span>{" "}
+                ({gameOverData?.stepsCompleted} consecutive links successfully landed!)
+              </div>
+              <div>
+                ⚡ <strong>Closing Skillchain:</strong>{" "}
+                <span style={{ color: "#ffd700", fontWeight: "bold" }}>
+                  {gameOverData?.resultingSC}
+                </span>
+              </div>
+              <div style={{ marginTop: "6px", color: "#a7f3d0", fontSize: "0.85rem" }}>
+                <em>
+                  In FFXI rules, higher-level skillchains (such as Level 3 Light or Dark, or Level 4 Radiance or Umbra) naturally conclude a skillchain sequence and cannot be chained into indefinitely. You executed the full sequence with flawless timing!
+                </em>
+              </div>
+              <div style={{ marginTop: "8px", borderTop: "1px dashed #2ecc71", paddingTop: "8px" }}>
+                🏆 <strong>Final Streak (Score):</strong>{" "}
+                <span
+                  style={{
+                    fontSize: "1.15rem",
+                    fontWeight: "bold",
+                    color: "#2ecc71",
+                  }}
+                >
+                  {gameOverData?.streak}
+                </span>{" "}
+                | <strong>High Score Record:</strong> {survivalHighScore}
+              </div>
+            </div>
+
+            {/* High Score Text Celebration */}
+            {gameOverData?.beatHigh && (
+              <div
+                style={{
+                  background: "#2e2200",
+                  border: "2px solid #ffd700",
+                  color: "#ffd700",
+                  padding: "16px",
+                  textAlign: "center",
+                  fontWeight: "bold",
+                  fontSize: "1.1rem",
+                  marginBottom: "18px",
+                }}
+              >
+                ★ ★ ★ 🏆 NEW PERSONAL RECORD HIGH SCORE: {survivalHighScore}! 🏆 ★ ★ ★
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "#fff",
+                    marginTop: "6px",
+                    fontWeight: "normal",
+                  }}
+                >
+                  Outstanding skillchain mastery! You conquered the timing windows and set a new standard of greatness!
+                </div>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: "14px",
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
+              <button
+                onClick={() => initSurvivalGame("random", survivalStreak)}
+                style={{
+                  cursor: "pointer",
+                  background: "#2ecc71",
+                  color: "#000",
+                  border: "none",
+                  padding: "12px 26px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                  fontFamily: "monospace",
+                }}
+              >
+                [ ⚔️ NEXT SEQUENCE (CONTINUE STREAK: {survivalStreak}) ]
+              </button>
+              <button
+                onClick={() => initSurvivalGame(survivalFlowId, 0)}
+                style={{
+                  cursor: "pointer",
+                  background: theme.itemBg,
+                  color: theme.text,
+                  border: `1px solid ${theme.border}`,
+                  padding: "12px 26px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                  fontFamily: "monospace",
+                }}
+              >
+                [ ↺ REPLAY THIS SEQUENCE ]
+              </button>
+              <button
+                onClick={() => handleViewSwitch("calculator")}
+                style={{
+                  cursor: "pointer",
+                  background: theme.itemBg,
+                  color: theme.text,
+                  border: `1px solid ${theme.border}`,
+                  padding: "12px 26px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                  fontFamily: "monospace",
+                }}
+              >
+                [ 💻 RETURN TO CALCULATOR ]
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Game State: GAME OVER View */}
+        {survivalStatus === "GAME_OVER" && (
+          <div
+            style={{
+              background: "#160000",
+              border: "2px solid #ff4757",
+              padding: "24px 20px",
+              marginBottom: "18px",
+            }}
+          >
+            {/* ASCII Crash and Burn Flare */}
+            <pre
+              style={{
+                color: "#ff4757",
+                fontSize: isMobile ? "0.55rem" : "0.75rem",
+                lineHeight: "1.1",
+                margin: "0 0 16px 0",
+                overflowX: "auto",
+                textAlign: "center",
+                fontWeight: "bold",
+              }}
+            >
+{`
+   ______ ____  ___   _____ __  __   ___    _   __ ____     ____  __  ______  _   __
+  / ____// __ \\/   | / ___// / / /  /   |  / | / // __ \\   / __ )/ / / / __ \\/ | / /
+ / /    / /_/ / /| | \\__ \\/ /_/ /  / /| | /  |/ // / / /  / __  / / / / /_/ /  |/ / 
+/ /___ / _, _/ ___ |___/ / __  /  / ___ |/ /|  // /_/ /  / /_/ / /_/ / _, _/ /|  /  
+\\____//_/ |_/_/  |_/____/_/ /_/  /_/  |_/_/ |_//_____/  /_____/\\____/_/ |_/_/ |_/   
+`}
+            </pre>
+
+            <div
+              style={{
+                textAlign: "center",
+                color: "#ff4757",
+                fontSize: "1.15rem",
+                fontWeight: "bold",
+                marginBottom: "16px",
+                letterSpacing: "1px",
+              }}
+            >
+              {gameOverData?.reason === "TIMEOUT"
+                ? "⏱️⏱️ TIME EXPIRED! ACTIVE SKILLCHAIN WINDOW CLOSED! ⏱️⏱️"
+                : "💥💥 CRASH AND BURN! THE SKILLCHAIN HAS SHATTERED! 💥💥"}
+            </div>
+
+            <div
+              style={{
+                background: "#2a0000",
+                border: "1px solid #ff4757",
+                padding: "14px 18px",
+                marginBottom: "18px",
+                fontSize: "0.92rem",
+                lineHeight: "1.6",
+              }}
+            >
+              {gameOverData?.reason === "TIMEOUT" ? (
+                <div>
+                  ⏱️ <strong>Failure Cause:</strong>{" "}
+                  <span style={{ color: "#ff4757", fontWeight: "bold" }}>
+                    TIMEOUT
+                  </span>{" "}
+                  — Active timing window elapsed before a Weapon Skill was chosen!
+                </div>
+              ) : (
+                <div>
+                  ❌ <strong>Chosen Weapon Skill:</strong>{" "}
+                  <span style={{ color: "#ff4757", fontWeight: "bold" }}>
+                    {gameOverData?.chosen?.name}
+                  </span>{" "}
+                  ({gameOverData?.chosen?.weaponType}) —{" "}
+                  <em>MISALIGNMENT / CHAIN BROKEN</em>
+                </div>
+              )}
+              <div>
+                ✅ <strong>Required Continuation:</strong>{" "}
+                <span style={{ color: "#2ecc71", fontWeight: "bold" }}>
+                  {gameOverData?.required?.name}
+                </span>{" "}
+                ({gameOverData?.required?.weaponType}) → Would have closed{" "}
+                <span style={{ color: "#ffd700", fontWeight: "bold" }}>
+                  {gameOverData?.resultingSC}
+                </span>
+              </div>
+              <div style={{ marginTop: "4px" }}>
+                🏆 <strong>Final Streak (Score):</strong>{" "}
+                <span
+                  style={{
+                    fontSize: "1.1rem",
+                    fontWeight: "bold",
+                    color: "#fff",
+                  }}
+                >
+                  {gameOverData?.streak}
+                </span>{" "}
+                | <strong>High Score Record:</strong> {survivalHighScore}
+              </div>
+            </div>
+
+            {/* High Score Text Celebration */}
+            {gameOverData?.beatHigh && (
+              <div
+                style={{
+                  background: "#2e2200",
+                  border: "2px solid #ffd700",
+                  color: "#ffd700",
+                  padding: "16px",
+                  textAlign: "center",
+                  fontWeight: "bold",
+                  fontSize: "1.1rem",
+                  marginBottom: "18px",
+                }}
+              >
+                ★ ★ ★ 🏆 NEW PERSONAL RECORD HIGH SCORE: {survivalHighScore}! 🏆 ★ ★ ★
+                <div
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "#fff",
+                    marginTop: "6px",
+                    fontWeight: "normal",
+                  }}
+                >
+                  Outstanding skillchain execution! You conquered the pressure and set a new standard of mastery!
+                </div>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: "14px",
+                flexWrap: "wrap",
+                justifyContent: "center",
+              }}
+            >
+              <button
+                onClick={() => initSurvivalGame(survivalFlowId, 0)}
+                style={{
+                  cursor: "pointer",
+                  background: "#ff4757",
+                  color: "#fff",
+                  border: "none",
+                  padding: "12px 26px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                  fontFamily: "monospace",
+                }}
+              >
+                [ ⚔️ RETRY / PLAY AGAIN ]
+              </button>
+              <button
+                onClick={() => handleViewSwitch("calculator")}
+                style={{
+                  cursor: "pointer",
+                  background: theme.itemBg,
+                  color: theme.text,
+                  border: `1px solid ${theme.border}`,
+                  padding: "12px 26px",
+                  fontSize: "1rem",
+                  fontWeight: "bold",
+                  fontFamily: "monospace",
+                }}
+              >
+                [ 💻 RETURN TO CALCULATOR ]
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Game State: PLAYING View */}
+        {survivalStatus === "PLAYING" && currentTurn && (
+          <div
+            style={{
+              background: theme.cardBg,
+              border: `2px solid ${theme.border}`,
+              padding: "20px",
+              marginBottom: "18px",
+            }}
+          >
+            {/* Round info header */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "10px",
+                borderBottom: `1px solid ${theme.border}`,
+                paddingBottom: "12px",
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <span style={{ color: theme.muted, fontSize: "0.85rem" }}>
+                  CURRENT ROUND:{" "}
+                </span>
+                <strong style={{ color: "#a5b4fc", fontSize: "1.1rem" }}>
+                  TURN {currentTurn.turnNumber} (STEP {currentTurn.flowStepIndex + 1} OF {activeSurvivalFlow?.steps.length})
+                </strong>
+                {currentTurn.isFinisher && (
+                  <span
+                    style={{
+                      marginLeft: "10px",
+                      background: "#ffd700",
+                      color: "#000",
+                      padding: "2px 8px",
+                      fontSize: "0.75rem",
+                      fontWeight: "bold",
+                      borderRadius: "2px",
+                    }}
+                  >
+                    ★ FINAL FINISHER LINK
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: "0.85rem", color: theme.muted }}>
+                FLOW:{" "}
+                <span style={{ color: theme.text, fontWeight: "bold" }}>
+                  {activeSurvivalFlow?.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Previous WS Executed and Resulting SC Announcement */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: isMobile ? "column" : "row",
+                gap: "14px",
+                alignItems: isMobile ? "flex-start" : "center",
+                justifyContent: "space-between",
+                background: theme.itemBg,
+                padding: "14px 18px",
+                border: `1px solid ${theme.border}`,
+                marginBottom: "16px",
+              }}
+            >
+              <div>
+                <div style={{ color: theme.muted, fontSize: "0.75rem", marginBottom: "3px" }}>
+                  PREVIOUS WEAPON SKILL EXECUTED:
+                </div>
+                <div style={{ fontSize: "1.15rem", fontWeight: "bold" }}>
+                  {currentTurn.previousWS?.name}{" "}
+                  <span style={{ fontSize: "0.82rem", color: theme.muted, fontWeight: "normal" }}>
+                    [{currentTurn.previousWS?.weaponType}]
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div style={{ color: theme.muted, fontSize: "0.75rem", marginBottom: "4px" }}>
+                  RESULTING SKILLCHAIN:
+                </div>
+                {currentTurn.turnNumber === 1 ? (
+                  <span
+                    style={{
+                      color: theme.muted,
+                      fontWeight: "bold",
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    None (Opener Initiated)
+                  </span>
+                ) : (
+                  <span
+                    style={getStyleForElement(
+                      currentTurn.previousSC?.replace(/ \(Lv\d[^)]*\)/, "").trim(),
+                    )}
+                  >
+                    {currentTurn.previousSC}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Real-time Countdown Timer Box (Pause Window vs Active Window) */}
+            <div
+              style={{
+                background: isPause
+                  ? "#0c1527"
+                  : isUrgent
+                    ? "#200b0b"
+                    : "#0d1b14",
+                border: `2px solid ${timerColor}`,
+                padding: "14px 18px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+                marginBottom: "18px",
+                boxShadow: `0 0 14px ${timerColor}44`,
+                transition: "border-color 0.2s, background-color 0.2s",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: timerColor,
+                      fontWeight: "900",
+                      fontSize: "1.2rem",
+                      letterSpacing: "1px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span>{isPause ? "⏸️" : isUrgent ? "⚠️" : "⏱️"}</span>
+                    <span>
+                      {isPause
+                        ? `PAUSE WINDOW (INACTIVE): ${timeRemaining.toFixed(1)}s`
+                        : isUrgent
+                          ? `TIME CRITICAL: ${timeRemaining.toFixed(1)}s`
+                          : `TIME REMAINING: ${timeRemaining.toFixed(1)} SECONDS`}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      color: isPause
+                        ? "#93c5fd"
+                        : isUrgent
+                          ? "#ffb8b8"
+                          : "#a7f3d0",
+                      fontSize: "0.84rem",
+                      marginTop: "4px",
+                    }}
+                  >
+                    {isPause
+                      ? "FFXI 4-second pause window active — wait for WS animation to settle before closing chain!"
+                      : `${currentTurn.timing.description} — ACTIVE WINDOW OPEN — EXECUTE NOW!`}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  {isPause && (
+                    <button
+                      onClick={skipPauseWindow}
+                      title="Skip 4-second wait and open active link window immediately (or press Space)"
+                      style={{
+                        background: "#1e3a8a",
+                        border: "1px solid #60a5fa",
+                        color: "#fff",
+                        padding: "6px 12px",
+                        fontFamily: "monospace",
+                        fontSize: "0.8rem",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                      }}
+                    >
+                      [ ⏩ SKIP PAUSE ]
+                    </button>
+                  )}
+                  <div
+                    style={{
+                      fontSize: "1.9rem",
+                      fontWeight: "900",
+                      color: timerColor,
+                      fontFamily: "monospace",
+                      minWidth: "65px",
+                      textAlign: "right",
+                    }}
+                  >
+                    {timeRemaining.toFixed(1)}s
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div
+                style={{
+                  width: "100%",
+                  height: "7px",
+                  background: isPause
+                    ? "#172554"
+                    : isUrgent
+                      ? "#450a0a"
+                      : "#064e3b",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    width: `${isPause ? pausePercent : activePercent}%`,
+                    height: "100%",
+                    background: isPause
+                      ? "linear-gradient(90deg, #3b82f6, #60a5fa)"
+                      : isUrgent
+                        ? "linear-gradient(90deg, #ff4757, #ff6b81)"
+                        : timeRemaining <= 4.0
+                          ? "linear-gradient(90deg, #f59e0b, #fbbf24)"
+                          : "linear-gradient(90deg, #10b981, #34d399)",
+                    transition: "width 0.05s linear",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Early Attempt Warning Banner */}
+            {earlyWarning && (
+              <div
+                style={{
+                  background: "#3a2500",
+                  border: "2px solid #f59e0b",
+                  color: "#fbbf24",
+                  padding: "10px 14px",
+                  marginBottom: "16px",
+                  fontSize: "0.9rem",
+                  fontWeight: "bold",
+                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+              >
+                <span>⚠️</span>
+                <span>{earlyWarning}</span>
+              </div>
+            )}
+
+            {/* 3 Choices Prompt */}
+            <div>
+              <div
+                style={{
+                  color: theme.text,
+                  fontSize: "0.9rem",
+                  marginBottom: "10px",
+                  fontWeight: "bold",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span>⚔️ SELECT NEXT WEAPON SKILL TO EXTEND THE CHAIN:</span>
+                {isPause && (
+                  <span style={{ fontSize: "0.8rem", color: "#60a5fa" }}>
+                    [ ⏸️ LOCKED: Window opens in {timeRemaining.toFixed(1)}s ]
+                  </span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+                  gap: "14px",
+                }}
+              >
+                {currentTurn.options.map((opt) => (
+                  <button
+                    key={opt.keyLabel}
+                    onClick={() => handleSurvivalChoice(opt)}
+                    style={{
+                      padding: "16px",
+                      background: theme.itemBg,
+                      color: theme.text,
+                      border: `2px solid ${isPause ? theme.border : theme.border}`,
+                      cursor: isPause ? "not-allowed" : "pointer",
+                      opacity: isPause ? 0.72 : 1,
+                      textAlign: "left",
+                      fontFamily: "monospace",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                      transition: "all 0.15s ease",
+                      boxShadow: isPause
+                        ? "none"
+                        : `3px 3px 0px ${theme.border}`,
+                    }}
+                    onMouseOver={(e) => {
+                      if (!isPause) {
+                        e.currentTarget.style.borderColor = "#2ecc71";
+                        e.currentTarget.style.boxShadow = "3px 3px 0px #2ecc71";
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!isPause) {
+                        e.currentTarget.style.borderColor = theme.border;
+                        e.currentTarget.style.boxShadow = `3px 3px 0px ${theme.border}`;
+                      }
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: isPause ? "#4b5563" : "#2ecc71",
+                          color: isPause ? "#fff" : "#000",
+                          fontWeight: "bold",
+                          padding: "2px 8px",
+                          fontSize: "0.9rem",
+                          borderRadius: "2px",
+                        }}
+                      >
+                        [ {opt.keyLabel} ]
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          color: theme.muted,
+                        }}
+                      >
+                        [{opt.weaponType}]
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        fontWeight: "bold",
+                        fontSize: "1.08rem",
+                        marginTop: "4px",
+                      }}
+                    >
+                      {opt.name}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  color: theme.muted,
+                  fontSize: "0.8rem",
+                  marginTop: "12px",
+                  textAlign: "center",
+                }}
+              >
+                [ TIP: Press <strong>A</strong>, <strong>B</strong>, or <strong>C</strong> (or <strong>1</strong>, <strong>2</strong>, <strong>3</strong>) to select. Press <strong>Space</strong> during pause to skip immediately! ]
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Battle Chronicle Terminal Window */}
+        <div
+          style={{
+            background: "#0a0a0a",
+            border: `1px solid ${theme.border}`,
+            padding: "14px 18px",
+            maxHeight: "180px",
+            overflowY: "auto",
+            fontFamily: "monospace",
+            fontSize: "0.84rem",
+          }}
+        >
+          <div
+            style={{
+              color: theme.muted,
+              marginBottom: "8px",
+              borderBottom: `1px dashed ${theme.border}`,
+              paddingBottom: "4px",
+              display: "flex",
+              justifyContent: "space-between",
+            }}
+          >
+            <span>== BATTLE CHRONICLE LOG ==</span>
+            <span>{survivalLog.length} EVENTS</span>
+          </div>
+          {survivalLog.map((log, i) => (
+            <div
+              key={i}
+              style={{
+                marginBottom: "4px",
+                lineHeight: "1.4",
+                color:
+                  log.type === "FAIL"
+                    ? "#ff4757"
+                    : log.type === "SUCCESS"
+                      ? "#2ecc71"
+                      : log.type === "OPENER"
+                        ? "#fb8fff"
+                        : "#a2e4f1",
+              }}
+            >
+              <span style={{ color: "#555", marginRight: "8px" }}>
+                [{log.time}]
+              </span>
+              {log.text}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const renderBlueprintGuide = () => (
     <div
@@ -783,7 +2185,7 @@ function App() {
           >
             <span>
               {viewMode === "challenge"
-                ? "Gnovi's Simulator"
+                ? "FFXI Skillchain Survival"
                 : antiChainMode
                   ? "Gnovi's Anti-Chains"
                   : "Gnovi's Chains"}
@@ -804,11 +2206,11 @@ function App() {
               onMouseOut={(e) => (e.currentTarget.style.opacity = 0.5)}
               title={
                 viewMode === "calculator"
-                  ? "Access Simulator"
-                  : "Return to Calculator"
+                  ? "Access FFXI Skillchain Survival Game (🎮)"
+                  : "Return to Calculator (💻)"
               }
             >
-              {viewMode === "calculator" ? "💻" : "🎮"}
+              {viewMode === "calculator" ? "🎮" : "💻"}
             </span>
           </h1>
 
@@ -856,149 +2258,14 @@ function App() {
           <div style={{ marginBottom: "1.8rem" }}>{renderBlueprintGuide()}</div>
         )}
 
-        {/* Split Workbench Viewport */}
-        <div style={{ display: "flex", gap: "28px", alignItems: "flex-start" }}>
-          {/* Left Block Workspace Container */}
-          <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
-            {/* Interactive Challenge Setup Controller - Exclusive to Challenge View */}
-            {viewMode === "challenge" && (
-              <div
-                style={{
-                  background: theme.cardBg,
-                  border: `1px solid ${challengeState !== "IDLE" ? "#b388ff" : theme.border}`,
-                  padding: "16px",
-                  marginBottom: "18px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "12px",
-                  }}
-                >
-                  <div>
-                    <span
-                      style={{
-                        fontWeight: "bold",
-                        color:
-                          challengeState !== "IDLE" ? "#b388ff" : theme.text,
-                      }}
-                    >
-                      🎮 PROCEDURAL COMBAT SIMULATOR
-                    </span>
-                    {challengeState !== "IDLE" && (
-                      <span style={{ marginLeft: "10px", color: theme.muted }}>
-                        [ GOAL:{" "}
-                        <strong
-                          style={{
-                            color:
-                              ELEMENT_COLORS[challengeTarget] || theme.text,
-                          }}
-                        >
-                          {challengeTarget.toUpperCase()}
-                        </strong>{" "}
-                        ]
-                      </span>
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "10px",
-                      alignItems: "center",
-                    }}
-                  >
-                    {challengeState === "IDLE" && (
-                      <>
-                        <select
-                          value={challengeTarget}
-                          onChange={(e) => setChallengeTarget(e.target.value)}
-                          style={{
-                            padding: "6px",
-                            fontFamily: "monospace",
-                            background: theme.itemBg,
-                            color: theme.text,
-                            border: `1px solid ${theme.border}`,
-                          }}
-                        >
-                          <option value="Light">LIGHT (LV3)</option>
-                          <option value="Darkness">DARKNESS (LV3)</option>
-                        </select>
-                        <button
-                          onClick={startChallengeRound}
-                          style={{
-                            cursor: "pointer",
-                            background: theme.accent,
-                            color: theme.bg,
-                            border: "none",
-                            padding: "6px 12px",
-                            fontWeight: "bold",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          [ START ]
-                        </button>
-                      </>
-                    )}
-
-                    {challengeState !== "IDLE" && (
-                      <button
-                        onClick={() => {
-                          setChallengeState("IDLE");
-                          setHistory([]);
-                        }}
-                        style={{
-                          cursor: "pointer",
-                          background: theme.danger,
-                          color: "#fff",
-                          border: "none",
-                          padding: "6px 12px",
-                          fontWeight: "bold",
-                          fontFamily: "monospace",
-                        }}
-                      >
-                        [ RESET ]
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {challengeState !== "IDLE" && (
-                  <div
-                    style={{
-                      marginTop: "12px",
-                      padding: "10px",
-                      background: theme.bg,
-                      borderLeft: `3px solid ${challengeState === "SUCCESS"
-                        ? "#2ecc71"
-                        : challengeState === "FAILED"
-                          ? theme.danger
-                          : "#b388ff"
-                        }`,
-                    }}
-                  >
-                    <div style={{ fontWeight: "bold", fontSize: "0.9rem" }}>
-                      {challengeState === "APP_THINKING" &&
-                        "⏳ APP THINKING... SIMULATING COMBAT POSITION..."}
-                      {challengeState === "USER_COOLDOWN" &&
-                        `⏳ STANDBY... NEXT POSITION UNLOCKING IN ${challengeTimer}s`}
-                      {challengeState === "USER_INPUT" &&
-                        "⚔️ YOUR TURN: Deploy ANY weapon skill that safely furthers the flow!"}
-                      {challengeState === "SUCCESS" &&
-                        `🎉 CLEAR! Target alignment achieved perfectly. Reloading pool in ${challengeTimer}s`}
-                      {challengeState === "FAILED" &&
-                        `❌ CHAIN BROKEN! Alignment property failed. Reloading in ${challengeTimer}s`}
-                      {challengeState === "IMPOSSIBLE" &&
-                        `⚠️ IMPOSSIBLE TARGET! Pool lacks pathing for selection. Regenerating in ${challengeTimer}s`}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+        {/* Main Viewport Router: FFXI Survival Arena vs Calculator Workbench */}
+        {viewMode === "challenge" ? (
+          renderSurvivalGame()
+        ) : (
+          /* Split Workbench Viewport (Calculator) */
+          <div style={{ display: "flex", gap: "28px", alignItems: "flex-start" }}>
+            {/* Left Block Workspace Container */}
+            <div style={{ flex: 1, minWidth: 0, width: "100%" }}>
 
             {/* Weapon Workspace Controller - Exclusive to Calculator View */}
             {viewMode === "calculator" && (
@@ -1350,7 +2617,7 @@ function App() {
                 background: theme.cardBg,
                 padding: "18px",
                 border: `1px solid ${darkMode ? "#333" : "#eee"}`,
-                marginTop: viewMode === "challenge" ? "12px" : "0",
+                marginTop: "0",
               }}
             >
               <div
@@ -1381,9 +2648,7 @@ function App() {
                   >
                     {history.length === 0 && (
                       <div style={{ color: theme.muted, fontSize: "0.95rem" }}>
-                        {viewMode === "challenge"
-                          ? "- awaiting simulator ignition -"
-                          : "- idle -"}
+                        - idle -
                       </div>
                     )}
                     {history.map((step, i) => (
@@ -1622,11 +2887,9 @@ function App() {
                   marginBottom: "1.5rem",
                 }}
               >
-                {viewMode === "challenge"
-                  ? " === SIMULATION MODE === "
-                  : antiChainMode
-                    ? " === SAFETY BRANCHES (ZERO LINK) === "
-                    : " === BRANCH OPTIONS === "}
+                {antiChainMode
+                  ? " === SAFETY BRANCHES (ZERO LINK) === "
+                  : " === BRANCH OPTIONS === "}
               </div>
 
               {!isChainClosed ? (
@@ -1653,20 +2916,7 @@ function App() {
                         }}
                       >
                         <div>
-                          {viewMode === "challenge" ? (
-                            <span
-                              style={{
-                                border: `1px solid ${theme.border}`,
-                                padding: "6px 12px",
-                                background: theme.cardBg,
-                                color: "#b388ff",
-                                fontSize: "0.9rem",
-                                fontWeight: "bold",
-                              }}
-                            >
-                              {element.toUpperCase()}
-                            </span>
-                          ) : antiChainMode ? (
+                          {antiChainMode ? (
                             <span
                               style={{
                                 border: `1px solid ${theme.muted}`,
@@ -1716,8 +2966,7 @@ function App() {
                         >
                           {skills.map((ws, idx) => {
                             const hasPartyHeader =
-                              viewMode === "challenge" ||
-                              (multiPartyMode && history.length > 0);
+                              multiPartyMode && history.length > 0;
                             const isSelectable = canSelectSkills && ws.isPriority;
 
                             return (
@@ -1735,7 +2984,7 @@ function App() {
                                   background: theme.itemBg,
                                   color: theme.text,
                                   border: isSelectable
-                                    ? `2px solid ${viewMode === "challenge" ? "#b388ff" : antiChainMode ? theme.danger : theme.accent}`
+                                    ? `2px solid ${antiChainMode ? theme.danger : theme.accent}`
                                     : `1px solid ${theme.border}`,
                                   cursor: isSelectable
                                     ? "pointer"
@@ -1745,7 +2994,7 @@ function App() {
                                   width: isMobile ? "100%" : "185px",
                                   boxSizing: "border-box",
                                   boxShadow: isSelectable
-                                    ? `4px 4px 0px ${viewMode === "challenge" ? "#b388ff" : antiChainMode ? theme.danger : theme.accent}`
+                                    ? `4px 4px 0px ${antiChainMode ? theme.danger : theme.accent}`
                                     : "none",
                                   opacity: isSelectable ? 1 : 0.4,
                                 }}
@@ -1758,11 +3007,9 @@ function App() {
                                       right: "10px",
                                       fontSize: "0.85rem",
                                       color: isSelectable
-                                        ? viewMode === "challenge"
-                                          ? "#b388ff"
-                                          : antiChainMode
-                                            ? theme.danger
-                                            : theme.accent
+                                        ? antiChainMode
+                                          ? theme.danger
+                                          : theme.accent
                                         : theme.muted,
                                       fontWeight: "bold",
                                       textTransform: "uppercase",
@@ -1842,6 +3089,7 @@ function App() {
             </div>
           )}
         </div>
+      )}
       </div>
       <footer
         style={{
